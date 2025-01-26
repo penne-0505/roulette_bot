@@ -162,6 +162,20 @@ async def command_ping(interaction: discord.Interaction):
         raise
 
 
+@tree.command(
+    name=locale_str("amidakuji"),
+    description=locale_str("assign roles to users randomly"),
+)
+async def command_amidakuji(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True)
+
+    avatar = interaction.user.display_avatar.url
+    embed = discord.Embed()
+    embed.set_author(name=interaction.user.display_name, icon_url=avatar)
+
+    await interaction.followup.send(embeds=[embed for _ in range(5)])
+
+
 if __name__ == "__main__":
     load_dotenv()
     TOKEN = os.getenv("CLIENT_TOKEN")
