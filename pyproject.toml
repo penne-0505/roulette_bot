@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "roulette-ds-bot"
+version = "0.1.0"
+description = ""
+authors = ["penne <penne0505pp@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+discord-py = "^2.4.0"
+python-dotenv = "^1.0.1"
+colorama = "^0.4.6"
+psutil = "^6.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
