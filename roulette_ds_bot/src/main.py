@@ -1,32 +1,28 @@
 import datetime
-import locale
-from math import e
-import os
 import logging
+import os
 import time
-from turtle import update
-import psutil
 
 import discord
+import psutil
 from discord.app_commands import locale_str
 from dotenv import load_dotenv
 
-
 from roulette_ds_bot.src.utils import (
-    INFO,
-    ERROR,
-    WARN,
-    DEBUG,
-    SUCCESS,
-    FORMAT,
     DATEFORMAT,
+    DEBUG,
+    ERROR,
+    FORMAT,
+    INFO,
+    SUCCESS,
+    WARN,
     blue,
+    bold,
+    cyan,
+    green,
+    magenta,
     red,
     yellow,
-    magenta,
-    green,
-    cyan,
-    bold,
 )
 
 intents = discord.Intents.all()
@@ -166,7 +162,9 @@ async def command_ping(interaction: discord.Interaction):
     name=locale_str("amidakuji"),
     description=locale_str("assign roles to users randomly"),
 )
-async def command_amidakuji(interaction: discord.Interaction):
+async def command_amidakuji(
+    interaction: discord.Interaction,
+):
     await interaction.response.defer(thinking=True)
 
     avatar = interaction.user.display_avatar.url

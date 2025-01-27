@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+
+import discord
 from colorama import Fore, Style
 
 
@@ -8,6 +11,12 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+@dataclass
+class CommandContext:
+    interaction: discord.Interaction
+    result: dict[int, ]
 
 
 # logging constants
