@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Any
 
 import discord
 from colorama import Fore, Style
@@ -13,10 +15,37 @@ class Singleton(type):
         return cls._instances[cls]
 
 
+class AmidakujiStep(Enum):
+    COMMAND_CALLED = auto()
+    
+    PRISET_SELECT_UI_DISPLAYED = auto()
+    
+    HISTORY_BUTTON_CLICKED = auto()
+    NEW_TEMPLATE_BUTTON_CLICKED = auto()
+    EXISTED_TEMPLATE_BUTTON_CLICKED = auto()
+    
+    # history button clicked
+    HISTORY_LOADED = auto()
+    
+    # new template button clicked
+    TEMPLATE_CREATE_UI_DISPLAYED = auto()
+    NEW_OPTION_BUTTON_CLICKED = auto()
+    OPTION_MODAL_DISPLAYED = auto()
+    OPTION_CREATED = auto()
+    
+    MEMBER_SELECT_UI_DISPLAYED = auto()
+    
+    CALC_DONE = auto()
+    
+    EMBED_SENT = auto()
+
+    HISTORY_SAVED = auto()
+
+
 @dataclass
 class CommandContext:
     interaction: discord.Interaction
-    result: dict[int, ]
+    result: dict[AmidakujiStep, Any]
 
 
 # logging constants
