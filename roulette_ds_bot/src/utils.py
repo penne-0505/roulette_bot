@@ -15,37 +15,24 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class AmidakujiStep(Enum):
-    COMMAND_CALLED = auto()
-    
-    PRISET_SELECT_UI_DISPLAYED = auto()
-    
-    HISTORY_BUTTON_CLICKED = auto()
-    NEW_TEMPLATE_BUTTON_CLICKED = auto()
-    EXISTED_TEMPLATE_BUTTON_CLICKED = auto()
-    
-    # history button clicked
-    HISTORY_LOADED = auto()
-    
-    # new template button clicked
-    TEMPLATE_CREATE_UI_DISPLAYED = auto()
-    NEW_OPTION_BUTTON_CLICKED = auto()
-    OPTION_MODAL_DISPLAYED = auto()
-    OPTION_CREATED = auto()
-    
-    MEMBER_SELECT_UI_DISPLAYED = auto()
-    
-    CALC_DONE = auto()
-    
-    EMBED_SENT = auto()
+class AmidakujiState(Enum):
+    MEMBER_SELECTED = auto()
 
-    HISTORY_SAVED = auto()
+    MODE_SELECTED = auto()
 
 
 @dataclass
 class CommandContext:
     interaction: discord.Interaction
-    result: dict[AmidakujiStep, Any]
+    state = AmidakujiState
+    result: Any
+    history: dict[AmidakujiState, Any] = None
+
+
+@dataclass
+class Template:
+    name: str
+    options: list[str]
 
 
 # logging constants
@@ -84,3 +71,7 @@ def cyan(text: str) -> str:
 
 def bold(text: str) -> str:
     return f"{Style.BRIGHT}{text}{Style.RESET_ALL}"
+
+
+if __name__ == "__main__":
+    pass

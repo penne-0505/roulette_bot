@@ -7,21 +7,14 @@ import discord
 import psutil
 from discord.app_commands import locale_str
 from dotenv import load_dotenv
-
-from roulette_ds_bot.src.utils import (
+from utils import (
     DATEFORMAT,
-    DEBUG,
-    ERROR,
     FORMAT,
     INFO,
-    SUCCESS,
-    WARN,
     blue,
     bold,
-    cyan,
     green,
     magenta,
-    red,
     yellow,
 )
 
