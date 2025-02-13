@@ -93,7 +93,7 @@ class DBManager:
         except Exception:
             raise
 
-    def delete_user(self, user_id: int) -> UserInfo:
+    def delete_user(self, user_id: int) -> None:
         try:
             self.ref.document(str(user_id)).delete()
         except Exception:
@@ -126,3 +126,16 @@ class DBManager:
             self.set_user(user)
         except Exception:
             raise
+
+
+if __name__ == "__main__":
+    db_manager = DBManager()
+    user = UserInfo(
+        id=1,
+        name="test",
+        least_template=Template(title="test", choices=["test"]),
+        custom_templates=[Template(title="test", choices=["test"])],
+    )
+    db_manager.set_user(user)
+    print(db_manager.get_user(1))
+    db_manager.delete_user(1)
