@@ -1,8 +1,5 @@
-from dataclasses import dataclass
-from enum import Enum, auto
-from typing import Any
+import uuid
 
-import discord
 from colorama import Fore, Style
 
 
@@ -15,24 +12,8 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class AmidakujiState(Enum):
-    MEMBER_SELECTED = auto()
-
-    MODE_SELECTED = auto()
-
-
-@dataclass
-class CommandContext:
-    interaction: discord.Interaction
-    state = AmidakujiState
-    result: Any
-    history: dict[AmidakujiState, Any] = None
-
-
-@dataclass
-class Template:
-    name: str
-    options: list[str]
+def gen_template_id(template_title: str) -> str:
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, template_title))
 
 
 # logging constants
