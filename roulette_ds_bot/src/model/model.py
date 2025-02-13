@@ -22,7 +22,7 @@ class CommandContext:
     interaction: discord.Interaction
     state: AmidakujiState
     result: Any
-    history: dict[AmidakujiState, Any] = {}
+    history: dict[AmidakujiState, Any] = field(default_factory=dict)
 
     def add_to_history(self, state: AmidakujiState, result: Any):
         self.history[state] = result
@@ -44,7 +44,7 @@ class UserInfo:
     id: int
     name: str
     least_template: Template | None = field(default=None)
-    custom_templates: list[Template] = field(default_factory=[])
+    custom_templates: list[Template] = field(default_factory=list)
 
 
 if __name__ == "__main__":
