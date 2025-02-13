@@ -3,4 +3,5 @@ poetry.lock
 .vscode/
 cred/
 .idx/
+roulette_ds_bot/src/model/__pycache__/
 roulette_ds_bot/src/__pycache__/
