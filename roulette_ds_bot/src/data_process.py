@@ -20,3 +20,7 @@ def create_pair_from_list(
     pairs = [{shuffled_users[i]: shuffled_groupes[i]} for i in range(pairs_amount)]
 
     return pairs
+
+
+if __name__ == "__main__":
+    pass
