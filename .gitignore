@@ -5,3 +5,4 @@ cred/
 .idx/
 roulette_ds_bot/src/model/__pycache__/
 roulette_ds_bot/src/__pycache__/
+poetry.lock
