@@ -5,9 +5,10 @@ import firebase_admin.firestore
 from dotenv import load_dotenv
 from firebase_admin import credentials
 from model.model import Template, UserInfo
+import utils
 
 
-class DBManager:
+class DBManager(meta=utils.Singleton):
     def __init__(self):
         load_dotenv()
         self.cred = credentials.Certificate(os.getenv("FIREBASE_CREDENTIALS"))
