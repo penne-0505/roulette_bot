@@ -1,6 +1,6 @@
 import discord
 from data_interface import DataInterface
-from model.model import AmidakujiState, CommandContext
+from model.model import AmidakujiState, CommandContext, Template, UserInfo
 
 
 class MemberSelect(discord.ui.UserSelect):
@@ -17,14 +17,14 @@ class MemberSelect(discord.ui.UserSelect):
             CommandContext(
                 interaction=interaction,
                 state=AmidakujiState.MEMBER_SELECTED,
-                result=interaction.data.get("values"),
+                result=self.values,
                 history=self.context.history,
             )
         )
         interface.forward()
 
 
-class UseExisting(discord.ui.Button):
+class UseExistingButton(discord.ui.Button):
     def __init__(self, context: CommandContext):
         super().__init__(
             style=discord.ButtonStyle.secondary, label="テンプレートを使う"
@@ -43,7 +43,7 @@ class UseExisting(discord.ui.Button):
         interface.forward()
 
 
-class CreateNew(discord.ui.Button):
+class CreateNewButton(discord.ui.Button):
     def __init__(self, context: CommandContext):
         super().__init__(
             style=discord.ButtonStyle.secondary, label="テンプレートを作成"
@@ -62,7 +62,7 @@ class CreateNew(discord.ui.Button):
         interface.forward()
 
 
-class UseHistory(discord.ui.Button):
+class UseHistoryButton(discord.ui.Button):
     def __init__(self, context: CommandContext):
         super().__init__(
             style=discord.ButtonStyle.secondary, label="直近のテンプレートを使う"
@@ -82,18 +82,43 @@ class UseHistory(discord.ui.Button):
 
 
 class SelectTemplate(discord.ui.Select):
-    def __init__(self, context: CommandContext, templates: list[str]):
+    def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(
             placeholder="テンプレートを選択してください",
             options=[
-                discord.SelectOption(label=template, value=template)
+                discord.SelectOption(label=template.title, value=template.id)
                 for template in templates
             ],
         )
         self.context = context
+    
+    async def callback(self, interaction: discord.Interaction):
+        interface= DataInterface(
+            CommandContext(
+                interaction=interaction,
+                state=AmidakujiState.TEMPLATE_DETERMINED,
+                result=self.values[0],
+                history=self.context.history
+            )
+        )
+        interface.forward()
+    
 
 
 class MemberSelectView(discord.ui.View):
     def __init__(self, context: CommandContext):
         super().__init__(timeout=300)
         self.add_item(MemberSelect(context))
+
+class SelectTemplateView(discord.ui.View):
+    def __init__(self, context: CommandContext, templates: list[Template]):
+        super().__init__(timeout=300)
+        self.add_item(SelectTemplate(context, templates))
+
+class ModeSelectionView(discord.ui.View):
+    def __init__(self, context: CommandContext):
+        super().__init__(timeout=300)
+        self.add_item(UseExistingButton(context))
+        self.add_item(UseHistoryButton(context))
+        # 新規作成は将来的に実装する(modalをループして表示するときの状態管理がめんどくさい)
+        # self.add_item(CreateNewButton(context))

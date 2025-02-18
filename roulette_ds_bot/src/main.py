@@ -7,6 +7,8 @@ import discord
 import psutil
 from discord.app_commands import locale_str
 from dotenv import load_dotenv
+from view_manager import ModeSelectionView
+from model.model import CommandContext, AmidakujiState
 from utils import (
     DATEFORMAT,
     FORMAT,
@@ -160,11 +162,14 @@ async def command_amidakuji(
 ):
     await interaction.response.defer(thinking=True)
 
-    avatar = interaction.user.display_avatar.url
-    embed = discord.Embed()
-    embed.set_author(name=interaction.user.display_name, icon_url=avatar)
-
-    await interaction.followup.send(embeds=[embed for _ in range(5)])
+    view = ModeSelectionView(
+        context=CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.COMMAND_EXECUTED,
+            result=None,
+            history={AmidakujiState.COMMAND_EXECUTED: interaction}
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import data_process
 from model.model import AmidakujiState, CommandContext, Template
 import db_manager
+from view_manager import MemberSelectView, SelectTemplateView
 
 
 class DataInterface:
@@ -15,13 +16,19 @@ class DataInterface:
     def forward(self):
         match self.state:
             case AmidakujiState.MODE_USE_EXISTING:
-                # dbからテンプレート取得 -> Templateインスタンス -> 選択のドロップダウンリスト表示(その後はUIのcallbackで)
+                # dbからテンプレート取得 -> 選択のドロップダウンリスト表示(その後はUIのcallbackで)
                 # dbからテンプレートを取得
                 target_user = self.interaction.user
                 fetched_user_data = self.db_manager.get_user(target_user.id)
                 user_templates = fetched_user_data.custom_templates
-
-                # テンプレートを
+                
+                # interactionに未応答だった場合、uiに起こして送信
+                if not self.interaction.response.is_done():
+                    view = SelectTemplateView(context=self.context, templates=user_templates)
+                    self.interaction.response.send_message(view=view)
+                else:
+                    raise Exception('interactoin was done') # TOOD: 適切なハンドリング実装
+                
                 
                 pass
             case AmidakujiState.MODE_CREATE_NEW:
@@ -42,7 +49,8 @@ class DataInterface:
                 if isinstance(selected_template, Template):
                     # ペアを作成
                     choices = selected_template.choices
-                    data_process.create_pair_from_list(selected_members, choices)
+                    result = data_process.create_pair_from_list(selected_members, choices)
+                    self.history[AmidakujiState.MEMBER_SELECTED] = result
                 else:
                     raise ValueError("Template is not selected")
             case AmidakujiState.TEMPLATE_DETERMINED:
