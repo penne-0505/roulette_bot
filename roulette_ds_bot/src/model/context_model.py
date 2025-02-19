@@ -1,30 +1,39 @@
 from dataclasses import dataclass, field
 from typing import Any, cast, get_args, get_type_hints
+
 import discord
+from model import TRUE_RESULT_TYPES
 from state_model import AmidakujiState, AmidakujiStateValues
-from model import RESULT_TRUE_TYPES
 
 
 @dataclass
 class CommandContext:
-    '''
+    """
     要素間で情報を受け渡したり、次のステップを明示的にするために使う。
-    '''
+    """
+
     interaction: discord.Interaction
     state: AmidakujiState
-    result: RESULT_TRUE_TYPES
-    _history: dict[AmidakujiState, RESULT_TRUE_TYPES] = field(default_factory=dict)
-    
+    result: TRUE_RESULT_TYPES
+    _history: dict[AmidakujiState, TRUE_RESULT_TYPES] = field(default_factory=dict)
+
     @property
     def history(self) -> dict[AmidakujiState, Any]:
-        '''直接historyにアクセスすることを防ぐ'''
-        raise AttributeError("Cannot access history directly. Use get_typed_history instead.")
-    
+        """直接historyにアクセスすることを防ぐ"""
+        raise AttributeError(
+            "Cannot access history directly. Use get_typed_history instead."
+        )
+
     @history.setter
     def history(self, value: Any) -> None:
-        '''直接historyに値をセットすることを防ぐ'''
+        """直接historyに値をセットすることを防ぐ"""
         raise AttributeError("Cannot set history directly. Use add_to_history instead.")
-    
+
+    def __post_init__(self) -> None:
+        # 初期化時に、resultのデータ型が正しいかチェック
+        if not isinstance(self.result, TRUE_RESULT_TYPES):
+            raise TypeError(f"Invalid result type: {type(self.result)}")
+
     def add_to_history(self, state: AmidakujiState, result: Any) -> None:
         """
         状態と結果をhistoryに追加する。TypedDictを使用して型チェックを行う。
@@ -32,7 +41,7 @@ class CommandContext:
         # AmidakujiStateValuesから期待される型を取得
         type_hints = get_type_hints(AmidakujiStateValues)
         expected_type = type_hints.get(state.name)
-        
+
         if expected_type is None:
             raise ValueError(f"Unknown state: {state}")
 
@@ -41,8 +50,10 @@ class CommandContext:
             if expected_type.__origin__ is list:
                 # list[discord.User]のようなものを期待していたが、そうでなかったとき
                 if not isinstance(result, list):
-                    raise TypeError(f"{state.name} state expects list, got {type(result)}")
-                
+                    raise TypeError(
+                        f"{state.name} state expects list, got {type(result)}"
+                    )
+
                 # 期待されているタイプを取得
                 element_type = get_args(expected_type)[0]
                 # 一つでもresult内に想定外のタイプがあった場合
@@ -63,8 +74,7 @@ class CommandContext:
         # 通常の型の場合(str, intなど)かつ想定外だった場合
         elif not isinstance(result, expected_type):
             raise TypeError(
-                f"{state.name} state expects {expected_type}, "
-                f"got {type(result)}"
+                f"{state.name} state expects {expected_type}, got {type(result)}"
             )
 
         # すべての型チェックに引っかからなかったら、historyに追加
@@ -80,7 +90,7 @@ class CommandContext:
         result = self.history[state]
         type_hints = get_type_hints(AmidakujiStateValues)
         expected_type = type_hints[state.name]
-        
+
         return cast(expected_type, result)
 
     def get_typed_history(self, state: AmidakujiState) -> AmidakujiStateValues:

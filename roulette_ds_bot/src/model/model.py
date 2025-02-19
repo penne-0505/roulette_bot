@@ -1,15 +1,16 @@
 from dataclasses import dataclass, field
-from state_model import AmidakujiState, AmidakujiStateValues
-from typing import Any, Union
+from typing import Union
+
 import discord
 import utils
 
 
 @dataclass
 class Template:
-    '''
+    """
     テンプレートのデータモデル。DBに保存するときもこの形式を使う。
-    '''
+    """
+
     title: str
     id: str = field(default_factory=lambda: None)  # 初期値をNoneに設定
     choices: list[str]
@@ -21,17 +22,20 @@ class Template:
 
 @dataclass
 class UserInfo:
-    '''
+    """
     DBに保存することを前提としたデータモデル。
     DBにわたす時にこの形式に直し、DBから受け取ったユーザー情報、テンプレート情報はこの形式で保持する
-    '''
+    """
+
     id: int
     name: str
     least_template: Template | None = field(default=None)
     custom_templates: list[Template] = field(default_factory=list)
 
 
-RESULT_TRUE_TYPES = Union[discord.Interaction | str | int | Template | list[discord.User]]
+TRUE_RESULT_TYPES = Union[
+    discord.Interaction | str | int | Template | list[discord.User]
+]
 
 
 if __name__ == "__main__":
