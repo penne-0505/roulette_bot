@@ -7,8 +7,8 @@ import discord
 import psutil
 from discord.app_commands import locale_str
 from dotenv import load_dotenv
-from view_manager import ModeSelectionView
-from model.model import CommandContext, AmidakujiState
+from model.context_model import CommandContext
+from model.state_model import AmidakujiState
 from utils import (
     DATEFORMAT,
     FORMAT,
@@ -19,6 +19,7 @@ from utils import (
     magenta,
     yellow,
 )
+from view_manager import ModeSelectionView
 
 intents = discord.Intents.all()
 
@@ -76,9 +77,8 @@ tree = discord.app_commands.CommandTree(client=client)
 client.sync_commands()
 
 
-@tree.command(name=locale_str("ping"), description=locale_str("Ping the bot."))
+@tree.command(name=locale_str("ping"), description=locale_str("Ping the bot. 🏓"))
 async def command_ping(interaction: discord.Interaction):
-    # 返信の遅延
     await interaction.response.defer(thinking=True)
 
     # Websocketレイテンシ
@@ -149,7 +149,14 @@ async def command_ping(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed, content=None)
 
     except Exception:
-        await interaction.followup.send("エラーが発生しました🥲", ephemeral=True)
+        embed = discord.Embed(
+            title="エラーが発生しました🥲",
+            description="ping-Unknown-Exception",
+            color=discord.Color.red(),
+            timestamp=datetime.datetime.now(),
+        )
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
         raise
 
 
@@ -162,14 +169,17 @@ async def command_amidakuji(
 ):
     await interaction.response.defer(thinking=True)
 
-    view = ModeSelectionView(
-        context=CommandContext(
-            interaction=interaction,
-            state=AmidakujiState.COMMAND_EXECUTED,
-            result=None,
-            history={AmidakujiState.COMMAND_EXECUTED: interaction}
-        )
+    context = CommandContext(
+        interaction=interaction,
+        state=AmidakujiState.COMMAND_EXECUTED,
+        result=None,
     )
+
+    context.add_to_history(AmidakujiState.COMMAND_EXECUTED, interaction)
+
+    view = ModeSelectionView(context=context)
+
+    await interaction.followup.send(view=view)
 
 
 if __name__ == "__main__":

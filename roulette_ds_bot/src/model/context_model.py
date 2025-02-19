@@ -30,6 +30,11 @@ class CommandContext:
         del value
         raise AttributeError("Cannot set history directly. Use add_to_history instead.")
 
+    def __post_init__(self) -> None:
+        # 初期化時に、resultのデータ型が正しいかチェック
+        if not isinstance(self.result, TRUE_RESULT_TYPES):
+            raise TypeError(f"Invalid result type: {type(self.result)}")
+
     def add_to_history(self, state: AmidakujiState, result: Any) -> None:
         """
         状態と結果をhistoryに追加する。TypedDictを使用して型チェックを行う。
