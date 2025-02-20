@@ -93,28 +93,22 @@ class SelectTemplate(discord.ui.Select):
             ],
         )
         self.context = context
-    
+
     async def callback(self, interaction: discord.Interaction):
         selected_template = self.values[0]
-        
+
         context = CommandContext(
             interaction=interaction,
             state=AmidakujiState.TEMPLATE_DETERMINED,
             result=selected_template,
         )
-        
-        context.add_to_history(state=AmidakujiState.TEMPLATE_DETERMINED, result=selected_template)
-        
-        interface= DataInterface(
-            CommandContext(
-                interaction=interaction,
-                state=AmidakujiState.TEMPLATE_DETERMINED,
-                result=self.values[0],
-                history=self.context.history
-            )
+
+        context.add_to_history(
+            state=AmidakujiState.TEMPLATE_DETERMINED, result=selected_template
         )
+
+        interface = DataInterface(context=context)
         interface.forward()
-    
 
 
 class MemberSelectView(discord.ui.View):
@@ -122,10 +116,12 @@ class MemberSelectView(discord.ui.View):
         super().__init__(timeout=300)
         self.add_item(MemberSelect(context))
 
+
 class SelectTemplateView(discord.ui.View):
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(timeout=300)
         self.add_item(SelectTemplate(context, templates))
+
 
 class ModeSelectionView(discord.ui.View):
     def __init__(self, context: CommandContext):

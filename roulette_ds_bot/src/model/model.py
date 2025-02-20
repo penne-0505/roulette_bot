@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Union
 
-import discord
 import utils
 
 
@@ -31,11 +29,6 @@ class UserInfo:
     name: str
     least_template: Template | None = field(default=None)
     custom_templates: list[Template] = field(default_factory=list)
-
-
-TRUE_RESULT_TYPES = Union[
-    discord.Interaction | str | int | Template | list[discord.User]
-]
 
 
 if __name__ == "__main__":
