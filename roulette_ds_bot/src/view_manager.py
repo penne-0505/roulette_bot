@@ -112,19 +112,20 @@ class SelectTemplate(discord.ui.Select):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        # コンテクストを作成
-        result = self.values[0]
+        selected_template = self.values[0]
+
         context = CommandContext(
             interaction=interaction,
             state=AmidakujiState.TEMPLATE_DETERMINED,
-            result=result,
+            result=selected_template,
         )
 
-        context.add_to_history(state=AmidakujiState.TEMPLATE_DETERMINED, result=result)
+        context.add_to_history(
+            state=AmidakujiState.TEMPLATE_DETERMINED, result=selected_template
+        )
 
-        # データインターフェースを作成してforward(次のステップに進む)
         interface = DataInterface(context=context)
-        await interface.forward()
+        interface.forward()
 
 
 class MemberSelectView(discord.ui.View):
