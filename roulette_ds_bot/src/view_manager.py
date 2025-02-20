@@ -1,6 +1,8 @@
 import discord
 from data_interface import DataInterface
-from model.model import AmidakujiState, CommandContext, Template, UserInfo
+from model.context_model import CommandContext
+from model.model import Template
+from model.state_model import AmidakujiState
 
 
 class MemberSelect(discord.ui.UserSelect):
@@ -13,15 +15,24 @@ class MemberSelect(discord.ui.UserSelect):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        interface = DataInterface(
-            CommandContext(
-                interaction=interaction,
-                state=AmidakujiState.MEMBER_SELECTED,
-                result=self.values,
-                history=self.context.history,
-            )
+        # Memberの可能性があるので、Userに変換
+        result = []
+        for user in self.values:
+            if isinstance(user, discord.User):
+                result.append(user)
+            elif isinstance(user, discord.Member):
+                result.append(self.context.interaction.client.get_user(user.id))
+
+        context = CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.MEMBER_SELECTED,
+            result=result,
         )
-        interface.forward()
+
+        self.context.add_to_history(state=AmidakujiState.MEMBER_SELECTED, result=result)
+
+        interface = DataInterface(context=context)
+        await interface.forward()
 
 
 class UseExistingButton(discord.ui.Button):
@@ -32,15 +43,18 @@ class UseExistingButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        interface = DataInterface(
-            CommandContext(
-                interaction=interaction,
-                state=AmidakujiState.MODE_USE_EXISTING,
-                result="existing",
-                history=self.context.history,
-            )
+        context = CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.MODE_USE_EXISTING,
+            result="existing",
         )
-        interface.forward()
+
+        context.add_to_history(
+            state=AmidakujiState.MODE_USE_EXISTING, result=interaction
+        )
+
+        interface = DataInterface(context=context)
+        await interface.forward()
 
 
 class CreateNewButton(discord.ui.Button):
@@ -51,15 +65,16 @@ class CreateNewButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        interface = DataInterface(
-            CommandContext(
-                interaction=interaction,
-                state=AmidakujiState.MODE_CREATE_NEW,
-                result="new",
-                history=self.context.history,
-            )
+        context = CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.MODE_CREATE_NEW,
+            result="new",
         )
-        interface.forward()
+
+        context.add_to_history(state=AmidakujiState.MODE_CREATE_NEW, result=interaction)
+
+        interface = DataInterface(context=context)
+        await interface.forward()
 
 
 class UseHistoryButton(discord.ui.Button):
@@ -70,19 +85,23 @@ class UseHistoryButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        interface = DataInterface(
-            CommandContext(
-                interaction=interaction,
-                state=AmidakujiState.MODE_USE_HISTORY,
-                result="history",
-                history=self.context.history,
-            )
+        context = CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.MODE_USE_HISTORY,
+            result="history",
         )
-        interface.forward()
+
+        context.add_to_history(
+            state=AmidakujiState.MODE_USE_HISTORY, result=interaction
+        )
+
+        interface = DataInterface(context=context)
+        await interface.forward()
 
 
 class SelectTemplate(discord.ui.Select):
     def __init__(self, context: CommandContext, templates: list[Template]):
+        # templatesからSelectOptionを作成
         super().__init__(
             placeholder="テンプレートを選択してください",
             options=[
@@ -91,18 +110,21 @@ class SelectTemplate(discord.ui.Select):
             ],
         )
         self.context = context
-    
+
     async def callback(self, interaction: discord.Interaction):
-        interface= DataInterface(
-            CommandContext(
-                interaction=interaction,
-                state=AmidakujiState.TEMPLATE_DETERMINED,
-                result=self.values[0],
-                history=self.context.history
-            )
+        # コンテクストを作成
+        result = self.values[0]
+        context = CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.TEMPLATE_DETERMINED,
+            result=result,
         )
-        interface.forward()
-    
+
+        context.add_to_history(state=AmidakujiState.TEMPLATE_DETERMINED, result=result)
+
+        # データインターフェースを作成してforward(次のステップに進む)
+        interface = DataInterface(context=context)
+        await interface.forward()
 
 
 class MemberSelectView(discord.ui.View):
@@ -110,10 +132,12 @@ class MemberSelectView(discord.ui.View):
         super().__init__(timeout=300)
         self.add_item(MemberSelect(context))
 
+
 class SelectTemplateView(discord.ui.View):
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(timeout=300)
         self.add_item(SelectTemplate(context, templates))
+
 
 class ModeSelectionView(discord.ui.View):
     def __init__(self, context: CommandContext):
