@@ -5,6 +5,7 @@ import discord
 from model import Template
 
 
+# TODO: 2つ目以降のState,StateValuesを作るなら、抽象クラスつくる
 class AmidakujiStateValues(TypedDict, total=False):
     COMMAND_EXECUTED: discord.Interaction
 
