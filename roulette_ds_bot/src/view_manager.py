@@ -1,6 +1,8 @@
 import discord
 from data_interface import DataInterface
-from model.model import AmidakujiState, CommandContext, Template, UserInfo
+from model.context_model import CommandContext
+from model.model import Template
+from model.state_model import AmidakujiState
 
 
 class MemberSelect(discord.ui.UserSelect):
@@ -93,6 +95,16 @@ class SelectTemplate(discord.ui.Select):
         self.context = context
     
     async def callback(self, interaction: discord.Interaction):
+        selected_template = self.values[0]
+        
+        context = CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.TEMPLATE_DETERMINED,
+            result=selected_template,
+        )
+        
+        context.add_to_history(state=AmidakujiState.TEMPLATE_DETERMINED, result=selected_template)
+        
         interface= DataInterface(
             CommandContext(
                 interaction=interaction,
