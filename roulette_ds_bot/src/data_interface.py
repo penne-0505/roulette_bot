@@ -1,6 +1,8 @@
 import data_process
 import db_manager
-from model.model import AmidakujiState, CommandContext, Template
+from model.context_model import CommandContext
+from model.model import Template
+from model.state_model import AmidakujiState
 from view_manager import SelectTemplateView
 
 
@@ -54,10 +56,11 @@ class DataInterface:
                     result = data_process.create_pair_from_list(
                         selected_members, choices
                     )
-                    self.history[AmidakujiState.MEMBER_SELECTED] = result
+                    self.result = result
                 else:
                     raise ValueError("Template is not selected")
             case AmidakujiState.TEMPLATE_DETERMINED:
+                selected_template = self.result
                 pass
             case AmidakujiState.RESULT_DISPLAYED:
                 pass

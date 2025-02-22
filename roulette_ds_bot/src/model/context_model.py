@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, get_type_hints
 
 import discord
-from data_type.context_result import AmidakujiStateTypes
+from data_type.context_result_types import AmidakujiStateTypes
 from state_model import AmidakujiState
 
 
@@ -36,16 +36,10 @@ class CommandContext:
 
     @history.setter
     def history(self, value: Any) -> None:
-<<<<<<< HEAD
-        """直接historyに値をセットすることを防ぐ"""
-        del value
-        raise AttributeError("Cannot set history directly. Use add_to_history instead.")
-=======
         # 直接historyに値をセットすることを防ぐ
         raise AttributeError(
             "You cannot directly edit the history. When you set a result, it is automatically added to the history."
         )
->>>>>>> cd76a41901eb306501f75d576a982660bc48fa9d
 
     def _check_result_type(self, state: AmidakujiState, result: Any) -> None:
         """
