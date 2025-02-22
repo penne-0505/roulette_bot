@@ -4,6 +4,5 @@ poetry.lock
 cred/
 .venv/
 .idx/
-roulette_ds_bot/src/model/__pycache__/
-roulette_ds_bot/src/__pycache__/
 poetry.lock
+__pycache__/
