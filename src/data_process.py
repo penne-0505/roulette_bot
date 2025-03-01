@@ -27,7 +27,6 @@ def create_embeds_from_pairs(
     pairs: PairList, mode: ResultEmbedMode = ResultEmbedMode.COMPACT
 ) -> list[discord.Embed]:
     embeds = []
-    embeds.append(discord.Embed(title="抽選結果"))
 
     pair_list = pairs.pairs
 
