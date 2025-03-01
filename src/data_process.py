@@ -31,7 +31,7 @@ def create_embeds_from_pairs(
 
     pair_list = pairs.pairs
 
-    if mode == ResultEmbedMode.COMPACT:
+    if mode == "compact":
         for pair in pair_list:
             embed = discord.Embed()
             embed.set_author(
@@ -41,7 +41,7 @@ def create_embeds_from_pairs(
             embeds.append(embed)
         return embeds
 
-    elif mode == ResultEmbedMode.DETAILED:
+    elif mode == "detailed":
         for pair in pair_list:
             embed = discord.Embed()
             embed.title = f"> {pair.choice}"
