@@ -172,7 +172,7 @@ async def command_ping(interaction: discord.Interaction):
 
 @tree.command(
     name=locale_str("amidakuji"),
-    description=locale_str("assign roles to users randomly"),
+    description=locale_str("Assign roles to users randomly."),
 )
 async def command_amidakuji(
     interaction: discord.Interaction,
