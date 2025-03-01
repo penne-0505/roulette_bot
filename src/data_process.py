@@ -23,6 +23,7 @@ def create_pair_from_list(users: list[discord.User], groupes: list[str]) -> Pair
     return PairList(pairs=pairs)
 
 
+# TODO: 将来的に、utils.pyで定義されているlolの絵文字を使って、レーンごとに絵文字も併せて表示するように変更する
 def create_embeds_from_pairs(
     pairs: PairList, mode: ResultEmbedMode = ResultEmbedMode.COMPACT
 ) -> list[discord.Embed]:
