@@ -101,8 +101,7 @@ class DataInterface:
                     )
 
                     await self.context.interaction.response.send_message(
-                        content=None,
-                        embeds=embeds,
+                        content=None, embeds=embeds
                     )
                 else:
                     raise ValueError("Template is not selected")
