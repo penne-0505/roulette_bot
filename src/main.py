@@ -15,6 +15,7 @@ from utils import (
     DATEFORMAT,
     FORMAT,
     INFO,
+    CommandsTranslator,
     blue,
     bold,
     green,
@@ -53,8 +54,8 @@ class Client(discord.Client):
         logging.info(INFO + bold("Bot is ready."))
 
     async def setup_hook(self) -> None:
-        # コマンドの翻訳の呼び出しはここで行う
-        return
+        # コマンドの翻訳機能を設定
+        await tree.set_translator(CommandsTranslator())
 
     async def sync_commands(self) -> None:
         await tree.sync()
@@ -188,6 +189,23 @@ async def command_amidakuji(
     view = ModeSelectionView(context=context)
 
     await interaction.followup.send(view=view, ephemeral=True)
+
+
+@tree.command(
+    name=locale_str("toggle_embed_mode"),
+    description=locale_str("Toggle the embed mode of the result of the command."),
+)
+async def command_toggle_embed_mode(interaction: discord.Interaction):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+
+    db.toggle_embed_mode()
+
+    embed = discord.Embed(
+        title="埋め込みメッセージの表示形式を変更しました",
+        color=discord.Color.green(),
+    )
+
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 if __name__ == "__main__":

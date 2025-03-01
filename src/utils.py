@@ -1,3 +1,4 @@
+import discord
 from colorama import Fore, Style
 
 
@@ -8,6 +9,32 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+class CommandsTranslator(discord.app_commands.Translator):
+    async def translate(
+        self,
+        string: discord.app_commands.locale_str,
+        locale: discord.Locale,
+        context: discord.app_commands.TranslationContext,
+    ) -> str | None:
+        command_names = {
+            "en": {
+                "ping": "ping",
+                "amidakuji": "amidakuji",
+                "toggle_embed_mode": "toggle_embed_mode",
+            },
+            "ja": {
+                "ping": "ping",
+                "amidakuji": "あみだくじ",
+                "toggle_embed_mode": "埋め込み表示切替",
+            },
+        }
+
+        if locale.value in command_names and string in command_names[locale.value]:
+            return command_names[locale.value][string]
+
+        return None
 
 
 # logging constants
