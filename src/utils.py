@@ -45,6 +45,14 @@ class CommandsTranslator(discord.app_commands.Translator):
         return None
 
 
+# Emoji
+EMOJI_LOL_TOP = 1345304239970324511
+EMOJI_LOL_SUP = 1345304221477507114
+EMOJI_LOL_MID = 1345304210669043752
+EMOJI_LOL_JG = 1345304200741130240
+EMOJI_LOL_BOT = 1345304183091368006
+
+
 # logging constants
 INFO = f"{Fore.BLUE}[INFO]{Style.RESET_ALL}: "
 ERROR = f"{Fore.RED}[ERROR]{Style.RESET_ALL}: "
