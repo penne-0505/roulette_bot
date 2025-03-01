@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from enum import Enum
+from typing import Literal
 
 import discord
 
@@ -50,8 +51,8 @@ class PairList:
 
 # TODO: これはどこに置くべき？
 class ResultEmbedMode(Enum):
-    COMPACT = auto()
-    DETAILED = auto()
+    COMPACT = Literal["compact"]
+    DETAILED = Literal["detailed"]
 
 
 if __name__ == "__main__":

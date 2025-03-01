@@ -3,7 +3,7 @@ import discord
 import data_process
 from db_manager import db
 from model.context_model import CommandContext
-from model.model import ResultEmbedMode, Template
+from model.model import Template
 from model.state_model import AmidakujiState
 
 
@@ -97,7 +97,7 @@ class DataInterface:
                     )
 
                     embeds = data_process.create_embeds_from_pairs(
-                        pairs=result, mode=ResultEmbedMode.COMPACT
+                        pairs=result, mode=db.get_embed_mode()
                     )
 
                     await self.context.interaction.response.send_message(

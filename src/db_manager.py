@@ -137,6 +137,14 @@ class DBManager(metaclass=utils.Singleton):
         except Exception:
             raise
 
+    def get_embed_mode(self) -> str:
+        try:
+            data = self.info_repository.read_document("embed_mode")
+            return data.get("embed_mode", "compact")
+
+        except Exception:
+            raise
+
     def init_user(self, user_id: int, name: str) -> None:
         default_templates = self.get_default_templates()
         default_templates = [
