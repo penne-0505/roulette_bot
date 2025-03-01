@@ -202,6 +202,7 @@ async def command_toggle_embed_mode(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="埋め込みメッセージの表示形式を変更しました",
+        description=f"現在の表示形式: {db.get_embed_mode()}",
         color=discord.Color.green(),
     )
 
