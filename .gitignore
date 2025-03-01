@@ -6,3 +6,5 @@ cred/
 .idx/
 poetry.lock
 __pycache__/
+.dev.md
+.learned.md
