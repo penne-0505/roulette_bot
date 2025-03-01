@@ -123,6 +123,20 @@ class DBManager(metaclass=utils.Singleton):
         templates = templates["default_templates"]  # list
         return [self._dict_to_template(t) for t in templates]
 
+    def toggle_embed_mode(self) -> None:
+        try:
+            data = self.info_repository.read_document("embed_mode")
+            if data is None:
+                data = {"embed_mode": "compact"}
+            else:
+                if data["embed_mode"] == "compact":
+                    data["embed_mode"] = "detailed"
+                else:
+                    data["embed_mode"] = "compact"
+            self.info_repository.create_document("embed_mode", data)
+        except Exception:
+            raise
+
     def init_user(self, user_id: int, name: str) -> None:
         default_templates = self.get_default_templates()
         default_templates = [

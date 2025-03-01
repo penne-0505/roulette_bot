@@ -12,7 +12,6 @@ class DataInterface:
         self.context = context
 
     async def forward(self):
-        # 必要な時点でインポートすることで循環インポートを回避
         from view_manager import MemberSelectView, SelectTemplateView
 
         match self.context.state:
@@ -39,8 +38,20 @@ class DataInterface:
             case AmidakujiState.NEED_MORE_OPTIONS:
                 pass
             case AmidakujiState.MODE_USE_HISTORY:
+                # ユーザーの最後に使用したテンプレートを取得
                 current_user = self.context.interaction.user
                 user_least_template = db.get_user(current_user.id).least_template
+
+                if not user_least_template:
+                    embed = discord.Embed(
+                        title="エラーが発生しました🥲",
+                        description="履歴が見つかりませんでした。",
+                        color=discord.Color.red(),
+                    )
+                    await self.context.interaction.response.send_message(
+                        embed=embed, ephemeral=True
+                    )
+                    return
 
                 embed = discord.Embed(
                     title=user_least_template.title,
@@ -53,15 +64,12 @@ class DataInterface:
 
                 await first_interaction.followup.send(embed=embed, ephemeral=True)
 
-                if user_least_template:
-                    self.context.update_context(
-                        state=AmidakujiState.TEMPLATE_DETERMINED,
-                        result=user_least_template,
-                        interaction=self.context.interaction,
-                    )
-                    await self.forward()
-                else:
-                    raise ValueError("No least template found for the user")
+                self.context.update_context(
+                    state=AmidakujiState.TEMPLATE_DETERMINED,
+                    result=user_least_template,
+                    interaction=self.context.interaction,
+                )
+                await self.forward()
 
             case AmidakujiState.TEMPLATE_DETERMINED:
                 # dbに履歴を保存
