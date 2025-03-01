@@ -7,6 +7,8 @@ import discord
 import psutil
 from discord.app_commands import locale_str
 from dotenv import load_dotenv
+
+from db_manager import db
 from model.context_model import CommandContext
 from model.state_model import AmidakujiState
 from utils import (
@@ -39,6 +41,9 @@ class Client(discord.Client):
         # コマンドの同期
         await self.sync_commands()
 
+        # デフォルトテンプレートの初期化
+        db._init_default_templates()
+
         # 以下ログ
         logging.info(
             INFO + f"Logged in as {green(self.user.name)} ({blue(self.user.id)})"
@@ -59,10 +64,15 @@ class Client(discord.Client):
         interaction: discord.Interaction,
         command: discord.app_commands.Command | discord.app_commands.ContextMenu,
     ):
+        # コマンド実行時に、ユーザーがDBに登録されていない場合、登録する
+        exec_user = interaction.user
+        user_id = exec_user.id
+        if not db.user_is_exist(user_id):
+            db.init_user(user_id=user_id, name=exec_user.name)
+
         # 装飾してログを出力
         exec_guild = yellow(interaction.guild) if interaction.guild else "DM"
         exec_channel = magenta(interaction.channel) if interaction.channel else "(DM)"
-        exec_user = interaction.user
         user_name = blue(exec_user.name)
         user_id = blue(exec_user.id)
         exec_command = green(command.name)
@@ -156,8 +166,7 @@ async def command_ping(interaction: discord.Interaction):
             timestamp=datetime.datetime.now(),
         )
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
-        raise
+        await interaction.followup.send(embed=embed, content=None, ephemeral=True)
 
 
 @tree.command(
@@ -167,19 +176,18 @@ async def command_ping(interaction: discord.Interaction):
 async def command_amidakuji(
     interaction: discord.Interaction,
 ):
-    await interaction.response.defer(thinking=True)
+    await interaction.response.defer(thinking=True, ephemeral=True)
 
     context = CommandContext(
         interaction=interaction,
         state=AmidakujiState.COMMAND_EXECUTED,
-        result=None,
     )
 
-    context.add_to_history(AmidakujiState.COMMAND_EXECUTED, interaction)
+    context.result = interaction
 
     view = ModeSelectionView(context=context)
 
-    await interaction.followup.send(view=view)
+    await interaction.followup.send(view=view, ephemeral=True)
 
 
 if __name__ == "__main__":

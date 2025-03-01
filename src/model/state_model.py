@@ -23,12 +23,6 @@ class AmidakujiState(Enum):
 
     MEMBER_SELECTED = auto()  # これもすべてが共通して使う
 
-    RESULT_DISPLAYED = (
-        auto()
-    )  # 結果を表示し終わった時。次のステップでdbに履歴を保存する
-
-    HISTORY_SAVED = auto()  # これがゴール
-
     CANCELLED = (
         auto()
     )  # キャンセルボタンなどが押された時。interactionを破棄して操作を終了する

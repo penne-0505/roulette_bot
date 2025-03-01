@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
+from enum import Enum, auto
 
-import utils
+import discord
 
 
 @dataclass
@@ -9,13 +10,10 @@ class Template:
     テンプレートのデータモデル。DBに保存するときもこの形式を使う。
     """
 
-    title: str
-    id: str = field(default_factory=lambda: None)  # 初期値をNoneに設定
-    choices: list[str]
+    # 現状、タイトルの重複は許容できない
 
-    def __post_init__(self):
-        if self.id is None:
-            self.id = utils.gen_template_id(self.title)
+    title: str
+    choices: list[str]
 
 
 @dataclass
@@ -29,6 +27,31 @@ class UserInfo:
     name: str
     least_template: Template | None = field(default=None)
     custom_templates: list[Template] = field(default_factory=list)
+
+
+@dataclass
+class Pair:
+    """
+    ペアのデータモデル。
+    """
+
+    user: discord.User
+    choice: str
+
+
+@dataclass
+class PairList:
+    """
+    ペアのリストのデータモデル。
+    """
+
+    pairs: list[Pair]
+
+
+# TODO: これはどこに置くべき？
+class ResultEmbedMode(Enum):
+    COMPACT = auto()
+    DETAILED = auto()
 
 
 if __name__ == "__main__":

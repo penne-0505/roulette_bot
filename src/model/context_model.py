@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Any, get_type_hints
+from typing import Any
 
 import discord
-from data_type.context_result_types import AmidakujiStateTypes
-from state_model import AmidakujiState
+
+from data_type.context_result_types import AmidakujiStateTypes, TypeRegistry
+from model.state_model import AmidakujiState
 
 
 @dataclass
@@ -15,7 +16,7 @@ class CommandContext:
 
     interaction: discord.Interaction
     state: AmidakujiState
-    _result: AmidakujiStateTypes.EXPECTED_TYPES
+    _result: AmidakujiStateTypes.EXPECTED_TYPES = field(default=None)
     _history: dict[AmidakujiState, AmidakujiStateTypes.EXPECTED_TYPES] = field(
         default_factory=dict
     )
@@ -42,11 +43,20 @@ class CommandContext:
         )
 
     def _check_result_type(self, state: AmidakujiState, result: Any) -> None:
-        """
-        resultのデータ型が正しいかチェックする。
-        """
-        expected_type = get_type_hints(AmidakujiStateTypes).get(state)
-        if not isinstance(result, expected_type):
+        if not TypeRegistry().validate(state, result):
             raise TypeError(
-                f"Invalid result type: {type(result)} expected: {expected_type}"
+                f"Invalid result type: {type(result)} expected: {TypeRegistry().get_type(state)}"
             )
+
+    def update_context(
+        self,
+        state: AmidakujiState,
+        result: AmidakujiStateTypes.EXPECTED_TYPES,
+        interaction: discord.Interaction | None,
+    ) -> None:
+        if interaction is None:
+            pass
+        else:
+            self.interaction = interaction
+        self.state = state
+        self.result = result

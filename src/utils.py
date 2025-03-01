@@ -1,5 +1,3 @@
-import uuid
-
 from colorama import Fore, Style
 
 
@@ -10,10 +8,6 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
-
-def gen_template_id(template_title: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_DNS, template_title))
 
 
 # logging constants

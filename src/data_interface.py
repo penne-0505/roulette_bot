@@ -1,40 +1,35 @@
+import discord
+
 import data_process
-import db_manager
+from db_manager import db
 from model.context_model import CommandContext
-from model.model import Template
+from model.model import ResultEmbedMode, Template
 from model.state_model import AmidakujiState
-from view_manager import SelectTemplateView
 
 
 class DataInterface:
     def __init__(self, context: CommandContext):
         self.context = context
-        self.interaction = self.context.interaction
-        self.history = self.context.history
-        self.result = self.context.result
-        self.state = self.context.state
-        self.db_manager = db_manager.DBManager()
 
-    def forward(self):
-        match self.state:
+    async def forward(self):
+        # 必要な時点でインポートすることで循環インポートを回避
+        from view_manager import MemberSelectView, SelectTemplateView
+
+        match self.context.state:
             case AmidakujiState.MODE_USE_EXISTING:
                 # dbからテンプレートを取得
-                target_user = self.interaction.user
-                fetched_user_data = self.db_manager.get_user(target_user.id)
+                target_user = self.context.interaction.user
+                fetched_user_data = db.get_user(target_user.id)
                 user_templates = fetched_user_data.custom_templates
 
-                # interactionに未応答だった場合、uiに起こして送信
-                if not self.interaction.response.is_done():
-                    view = SelectTemplateView(
-                        context=self.context, templates=user_templates
-                    )
-                    self.interaction.response.send_message(view=view)
-                else:
-                    raise Exception(
-                        "interactoin was done"
-                    )  # TOOD: 適切なハンドリング実装
+                # テンプレート選択viewを送信
+                view = SelectTemplateView(
+                    context=self.context, templates=user_templates
+                )
+                await self.context.interaction.response.send_message(
+                    view=view, ephemeral=True
+                )
 
-                pass
             case AmidakujiState.MODE_CREATE_NEW:
                 pass
             case AmidakujiState.TEMPLATE_TITLE_ENTERED:
@@ -44,11 +39,47 @@ class DataInterface:
             case AmidakujiState.NEED_MORE_OPTIONS:
                 pass
             case AmidakujiState.MODE_USE_HISTORY:
-                pass
+                current_user = self.context.interaction.user
+                user_least_template = db.get_user(current_user.id).least_template
+
+                embed = discord.Embed(
+                    title=user_least_template.title,
+                    description="このテンプレートを使用します。",
+                )
+
+                first_interaction = self.context.history[
+                    AmidakujiState.COMMAND_EXECUTED
+                ]
+
+                await first_interaction.followup.send(embed=embed, ephemeral=True)
+
+                if user_least_template:
+                    self.context.update_context(
+                        state=AmidakujiState.TEMPLATE_DETERMINED,
+                        result=user_least_template,
+                        interaction=self.context.interaction,
+                    )
+                    await self.forward()
+                else:
+                    raise ValueError("No least template found for the user")
+
+            case AmidakujiState.TEMPLATE_DETERMINED:
+                # dbに履歴を保存
+                user_id = self.context.interaction.user.id
+                db.set_least_template(user_id, self.context.result)
+
+                # メンバー選択viewを送信
+                view = MemberSelectView(context=self.context)
+                await self.context.interaction.response.send_message(
+                    view=view, ephemeral=True
+                )
+
             case AmidakujiState.MEMBER_SELECTED:
-                selected_members = self.result
+                selected_members = self.context.result
                 # コマンドコンテクストからテンプレートを取得
-                selected_template = self.history[AmidakujiState.TEMPLATE_DETERMINED]
+                selected_template = self.context.history[
+                    AmidakujiState.TEMPLATE_DETERMINED
+                ]
                 choices = []
                 if isinstance(selected_template, Template):
                     # ペアを作成
@@ -56,16 +87,17 @@ class DataInterface:
                     result = data_process.create_pair_from_list(
                         selected_members, choices
                     )
-                    self.result = result
+
+                    embeds = data_process.create_embeds_from_pairs(
+                        pairs=result, mode=ResultEmbedMode.COMPACT
+                    )
+
+                    await self.context.interaction.response.send_message(
+                        content=None,
+                        embeds=embeds,
+                    )
                 else:
                     raise ValueError("Template is not selected")
-            case AmidakujiState.TEMPLATE_DETERMINED:
-                selected_template = self.result
-                pass
-            case AmidakujiState.RESULT_DISPLAYED:
-                pass
-            case AmidakujiState.HISTORY_SAVED:
-                pass
             case _:
                 raise ValueError("Invalid state")
 
