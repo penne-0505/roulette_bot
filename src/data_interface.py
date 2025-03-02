@@ -12,13 +12,12 @@ class DataInterface:
         self.context = context
 
     async def forward(self):
-        from view_manager import (
+        from components.modal import OptionNameEnterModal, TitleEnterModal
+        from view.view import (
             ApplyOptionsView,
             EnterOptionView,
             MemberSelectView,
-            OptionNameEnterModal,
             SelectTemplateView,
-            TitleEnterModal,
         )
 
         match self.context.state:

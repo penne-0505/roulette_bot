@@ -22,7 +22,7 @@ from utils import (
     magenta,
     yellow,
 )
-from view_manager import ModeSelectionView
+from view.view import ModeSelectionView
 
 intents = discord.Intents.all()
 
