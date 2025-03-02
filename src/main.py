@@ -32,6 +32,8 @@ logging.basicConfig(
     datefmt=DATEFORMAT,
 )
 
+# TODO: テンプレート削除機能の実装 -> 別のstateを追加?
+
 
 class Client(discord.Client):
     def __init__(self):
@@ -88,7 +90,7 @@ tree = discord.app_commands.CommandTree(client=client)
 client.sync_commands()
 
 
-@tree.command(name=locale_str("ping"), description=locale_str("Ping the bot. 🏓"))
+@tree.command(name=locale_str("ping"), description="Ping the bot. 🏓")
 async def command_ping(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
 
@@ -135,8 +137,7 @@ async def command_ping(interaction: discord.Interaction):
     )
 
     # 稼働時間
-    uptime_ms = time.time() - client.start_time
-    uptime_s = int(uptime_ms / 1000)
+    uptime_s = time.time() - client.start_time
     uptime_m = int(uptime_s / 60)
     uptime_h = int(uptime_m / 60)
 
@@ -146,7 +147,7 @@ async def command_ping(interaction: discord.Interaction):
             f"```\n"
             f"メモリ使用量: {memory_usage:.2f}MB\n"
             f"CPU使用率: {cpu_usage:.2f}%\n"
-            f"稼働時間: {uptime_ms:.2f}ms "
+            f"稼働時間: {uptime_s:.2f}s "
             f"({uptime_h}h {uptime_m}m {uptime_s}s)\n"
             "```"
         ),
@@ -172,7 +173,7 @@ async def command_ping(interaction: discord.Interaction):
 
 @tree.command(
     name=locale_str("amidakuji"),
-    description=locale_str("Assign roles to users randomly."),
+    description="Assign roles to users randomly.",
 )
 async def command_amidakuji(
     interaction: discord.Interaction,
@@ -193,16 +194,17 @@ async def command_amidakuji(
 
 @tree.command(
     name=locale_str("toggle_embed_mode"),
-    description=locale_str("Toggle the embed mode of the result of the command."),
+    description="Toggle the embed mode of the result of the command.",
 )
 async def command_toggle_embed_mode(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True, ephemeral=True)
 
     db.toggle_embed_mode()
+    current_mode = db.get_embed_mode()
 
     embed = discord.Embed(
         title="埋め込みメッセージの表示形式を変更しました",
-        description=f"現在の表示形式: {db.get_embed_mode()}",
+        description=f"現在の表示形式: {current_mode}",
         color=discord.Color.green(),
     )
 

@@ -18,29 +18,24 @@ class CommandsTranslator(discord.app_commands.Translator):
         locale: discord.Locale,
         context: discord.app_commands.TranslationContext,
     ) -> str | None:
-        translations = {
-            "en-US": {
-                "ping": "ping",
-                "amidakuji": "amidakuji",
-                "toggle_embed_mode": "toggle_embed_mode",
-                # 以下はコマンドの説明文
-                "Ping the bot. 🏓": "Ping the bot. 🏓",
-                "Assign roles to users randomly.": "Assign roles to users randomly.",
-                "Toggle the embed mode of the result of the command.": "Toggle the embed mode of the result of the command.",
-            },
+        command_names = {
             "ja": {
                 "ping": "ping",
                 "amidakuji": "あみだくじ",
-                "toggle_embed_mode": "埋め込み表示切替",
-                # 以下はコマンドの説明文
-                "Ping the bot. 🏓": "いろいろな情報を表示します🏓",
-                "Assign roles to users randomly.": "ユーザーに役割をランダムに割り当てます。(いわゆるあみだくじを行います)",
-                "Toggle the embed mode of the result of the command.": "コマンドの結果の表示モードを切り替えます。",
+                # "toggle_embed_mode": "埋め込み形式切替", # なぜか、regexのバリデーションに引っかかる
+            },
+            "en-US": {
+                "ping": "ping",
+                "amidakuji": "amidakuji",
+                # "toggle_embed_mode": "toggle embed mode",
             },
         }
 
-        if locale.value in translations and string in translations[locale.value]:
-            return translations[locale.value][string]
+        if (
+            locale.value in command_names
+            and string.message in command_names[locale.value]
+        ):
+            return command_names[locale.value][string.message]
 
         return None
 
