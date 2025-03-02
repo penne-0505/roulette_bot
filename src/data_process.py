@@ -7,7 +7,7 @@ from model.model import Pair, PairList, ResultEmbedMode
 
 def create_pair_from_list(users: list[discord.User], groupes: list[str]) -> PairList:
     if not users or not groupes:
-        raise ValueError("users and groupes must not be empty")
+        raise ValueError("ユーザーまたはグループが空です")
 
     pairs = []
     pairs_amount = min(len(users), len(groupes))

@@ -15,9 +15,10 @@ class AmidakujiState(Enum):
 
     # このブロックは、テンプレート新規作成特有
     TEMPLATE_TITLE_ENTERED = auto()  # テンプレートのタイトルが入力された時
-    OPTIONS_COUNT_ENTERED = auto()  # オプション数の入力が終わった時
-    NEED_MORE_OPTIONS = auto()  # 事前指定したオプション数を満たしておらず、もう一度モーダルを表示する必要がある時
-    TEMPLATE_CREATED = auto()  # dbに保存する必要があるため、別途ステップを追加
+    ENTER_OPTION_BUTTON_CLICKED = auto()  # オプション入力ボタンが押された時(モーダルからモーダルは、ボタンを押すことで遷移する)
+    OPTION_NAME_ENTERED = auto()  # オプションの名前が入力された時
+    NEED_MORE_OPTIONS = auto()  # さらにオプションを入力する必要がある時
+    TEMPLATE_CREATED = auto()  # テンプレートが作成された時(dbに別途保存する必要がある)
 
     TEMPLATE_DETERMINED = auto()  # 履歴使用、既存使用、新規作成すべてが、最終的にテンプレートが決定したときにこれを使う
 

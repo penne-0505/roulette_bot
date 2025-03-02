@@ -9,7 +9,12 @@ from model.state_model import AmidakujiState
 
 class AmidakujiStateTypes(Enum):
     EXPECTED_TYPES: TypeAlias = Union[
-        discord.Interaction, str, int, Template, List[discord.User], PairList
+        discord.Interaction,
+        str,
+        int,
+        Template,
+        List[discord.User],
+        PairList,
     ]
 
     COMMAND_EXECUTED: TypeAlias = discord.Interaction
@@ -19,9 +24,10 @@ class AmidakujiStateTypes(Enum):
     MODE_USE_HISTORY: TypeAlias = discord.Interaction
 
     TEMPLATE_TITLE_ENTERED: TypeAlias = str
-    OPTIONS_COUNT_ENTERED: TypeAlias = int
-    NEED_MORE_OPTIONS: TypeAlias = discord.Interaction
     TEMPLATE_CREATED: TypeAlias = Template
+    OPTION_NAME_ENTERED: TypeAlias = List[str]
+    ENTER_OPTION_BUTTON_CLICKED: TypeAlias = discord.Interaction
+    NEED_MORE_OPTIONS: TypeAlias = discord.Interaction
 
     TEMPLATE_DETERMINED: TypeAlias = Template
 
@@ -40,9 +46,10 @@ class TypeRegistry:
         AmidakujiState.MODE_CREATE_NEW: discord.Interaction,
         AmidakujiState.MODE_USE_HISTORY: discord.Interaction,
         AmidakujiState.TEMPLATE_TITLE_ENTERED: str,
-        AmidakujiState.OPTIONS_COUNT_ENTERED: int,
-        AmidakujiState.NEED_MORE_OPTIONS: discord.Interaction,
         AmidakujiState.TEMPLATE_CREATED: Template,
+        AmidakujiState.OPTION_NAME_ENTERED: list[str],
+        AmidakujiState.ENTER_OPTION_BUTTON_CLICKED: discord.Interaction,
+        AmidakujiState.NEED_MORE_OPTIONS: discord.Interaction,
         AmidakujiState.TEMPLATE_DETERMINED: Template,
         AmidakujiState.MEMBER_SELECTED: list[discord.User],
         AmidakujiState.CANCELLED: discord.Interaction,

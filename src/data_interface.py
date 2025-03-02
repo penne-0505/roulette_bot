@@ -12,11 +12,18 @@ class DataInterface:
         self.context = context
 
     async def forward(self):
-        from view_manager import MemberSelectView, SelectTemplateView
+        from view_manager import (
+            ApplyOptionsView,
+            EnterOptionView,
+            MemberSelectView,
+            OptionNameEnterModal,
+            SelectTemplateView,
+            TitleEnterModal,
+        )
 
         match self.context.state:
             case AmidakujiState.MODE_USE_EXISTING:
-                # dbからテンプレートを取得
+                # ユーザーのカスタムテンプレートを取得
                 target_user = self.context.interaction.user
                 fetched_user_data = db.get_user(target_user.id)
                 user_templates = fetched_user_data.custom_templates
@@ -30,18 +37,71 @@ class DataInterface:
                 )
 
             case AmidakujiState.MODE_CREATE_NEW:
-                pass
+                # テンプレートタイトル入力モーダルを表示
+                modal = TitleEnterModal(context=self.context)
+
+                await self.context.interaction.response.send_modal(modal)
+
             case AmidakujiState.TEMPLATE_TITLE_ENTERED:
-                pass
-            case AmidakujiState.OPTIONS_COUNT_ENTERED:
-                pass
+                # interaction生成用の、オプション入力ボタンを表示
+                view = EnterOptionView(context=self.context)
+
+                await self.context.interaction.response.send_message(
+                    view=view, ephemeral=True
+                )
+
+            case AmidakujiState.ENTER_OPTION_BUTTON_CLICKED:
+                # このステップをわざわざ挟んでいるのは、modal -> modalでの遷移はinteractionの仕様上できないため
+                # オプション名入力モーダルを表示
+                modal = OptionNameEnterModal(context=self.context)
+
+                await self.context.interaction.response.send_modal(modal)
+
+            case AmidakujiState.OPTION_NAME_ENTERED:
+                # オプションをさらに追加するか確認
+                view = ApplyOptionsView(context=self.context)
+
+                await self.context.interaction.response.send_message(
+                    view=view, ephemeral=True
+                )
+
             case AmidakujiState.NEED_MORE_OPTIONS:
-                pass
+                # オプション入力モーダルを再度表示
+                modal = OptionNameEnterModal(context=self.context)
+
+                await self.context.interaction.response.send_modal(modal)
+
+            case AmidakujiState.TEMPLATE_CREATED:
+                # カスタムテンプレートとしてDBに保存
+                template = self.context.result
+                user_id = self.context.interaction.user.id
+                db.add_custom_template(user_id=user_id, template=template)
+
+                await self.context.interaction.response.defer(ephemeral=True)
+
+                embed = discord.Embed(
+                    title="📝テンプレートを保存しました",
+                    description=f"タイトル: **{template.title}**",
+                    color=discord.Color.green(),
+                )
+                await self.context.interaction.followup.send(
+                    embed=embed, ephemeral=True
+                )
+
+                # 状態更新して次のステップへ
+                self.context.update_context(
+                    state=AmidakujiState.TEMPLATE_DETERMINED,
+                    result=template,
+                    interaction=self.context.interaction,
+                )
+                await self.forward()
+
             case AmidakujiState.MODE_USE_HISTORY:
                 # ユーザーの最後に使用したテンプレートを取得
                 current_user = self.context.interaction.user
                 user_least_template = db.get_user(current_user.id).least_template
 
+                # テンプレートが存在しない場合、エラーをユーザーに通知
                 if not user_least_template:
                     embed = discord.Embed(
                         title="エラーが発生しました🥲",
@@ -53,6 +113,7 @@ class DataInterface:
                     )
                     return
 
+                # テンプレートを使用する旨をユーザーに通知
                 embed = discord.Embed(
                     title=user_least_template.title,
                     description="このテンプレートを使用します。",
@@ -64,6 +125,7 @@ class DataInterface:
 
                 await first_interaction.followup.send(embed=embed, ephemeral=True)
 
+                # 状態更新して次のステップへ
                 self.context.update_context(
                     state=AmidakujiState.TEMPLATE_DETERMINED,
                     result=user_least_template,
@@ -78,9 +140,12 @@ class DataInterface:
 
                 # メンバー選択viewを送信
                 view = MemberSelectView(context=self.context)
-                await self.context.interaction.response.send_message(
-                    view=view, ephemeral=True
-                )
+                interaction = self.context.interaction
+                # interactionの種類によって送信方法を変更
+                if interaction.response.is_done():
+                    await interaction.followup.send(view=view, ephemeral=True)
+                else:
+                    await interaction.response.send_message(view=view, ephemeral=True)
 
             case AmidakujiState.MEMBER_SELECTED:
                 selected_members = self.context.result
@@ -96,10 +161,12 @@ class DataInterface:
                         selected_members, choices
                     )
 
+                    # ペアを元に埋め込みを作成
                     embeds = data_process.create_embeds_from_pairs(
                         pairs=result, mode=db.get_embed_mode()
                     )
 
+                    # メッセージを送信
                     await self.context.interaction.response.send_message(
                         content=None, embeds=embeds
                     )
