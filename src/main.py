@@ -9,8 +9,8 @@ from discord.app_commands import locale_str
 from dotenv import load_dotenv
 
 from db_manager import db
-from model.context_model import CommandContext
-from model.state_model import AmidakujiState
+from models.context_model import CommandContext
+from models.state_model import AmidakujiState
 from utils import (
     DATEFORMAT,
     FORMAT,
@@ -22,7 +22,7 @@ from utils import (
     magenta,
     yellow,
 )
-from view.view import ModeSelectionView
+from views.view import ModeSelectionView
 
 intents = discord.Intents.all()
 

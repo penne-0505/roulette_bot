@@ -2,9 +2,9 @@ import discord
 
 from data_interface import DataInterface
 from db_manager import db
-from model.context_model import CommandContext
-from model.model import Template
-from model.state_model import AmidakujiState
+from models.context_model import CommandContext
+from models.model import Template
+from models.state_model import AmidakujiState
 
 
 class TemplateSelect(discord.ui.Select):
@@ -54,6 +54,9 @@ class MemberSelect(discord.ui.UserSelect):
                 result.append(user)
             elif isinstance(user, discord.Member):
                 result.append(self.context.interaction.client.get_user(user.id))
+
+        # botを除外
+        result = [user for user in result if user is not user.bot]
 
         self.context.update_context(
             state=AmidakujiState.MEMBER_SELECTED,

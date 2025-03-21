@@ -9,8 +9,8 @@ from components.button import (
     UseHistoryButton,
 )
 from components.select import MemberSelect, TemplateSelect
-from model.context_model import CommandContext
-from model.model import Template
+from models.context_model import CommandContext
+from models.model import Template
 
 
 class MemberSelectView(discord.ui.View):

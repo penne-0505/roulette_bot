@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from firebase_admin import credentials, firestore
 
 import utils
-from model.model import Template, UserInfo
+from models.model import Template, UserInfo
 
 
 class UserRepository:

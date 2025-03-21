@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Type, TypeAlias, Union, get_origin
 
 import discord
 
-from model.model import PairList, Template
-from model.state_model import AmidakujiState
+from models.model import PairList, Template
+from models.state_model import AmidakujiState
 
 
 class AmidakujiStateTypes(Enum):

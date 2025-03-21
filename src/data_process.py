@@ -2,7 +2,7 @@ import random
 
 import discord
 
-from model.model import Pair, PairList, ResultEmbedMode
+from models.model import Pair, PairList, ResultEmbedMode
 
 
 def create_pair_from_list(users: list[discord.User], groupes: list[str]) -> PairList:

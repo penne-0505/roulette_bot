@@ -1,8 +1,8 @@
 import discord
 
 from data_interface import DataInterface
-from model.context_model import CommandContext
-from model.state_model import AmidakujiState
+from models.context_model import CommandContext
+from models.state_model import AmidakujiState
 
 
 class TitleEnterModal(discord.ui.Modal):

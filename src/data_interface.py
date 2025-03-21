@@ -2,9 +2,9 @@ import discord
 
 import data_process
 from db_manager import db
-from model.context_model import CommandContext
-from model.model import Template
-from model.state_model import AmidakujiState
+from models.context_model import CommandContext
+from models.model import Template
+from models.state_model import AmidakujiState
 
 
 class DataInterface:
@@ -13,7 +13,7 @@ class DataInterface:
 
     async def forward(self):
         from components.modal import OptionNameEnterModal, TitleEnterModal
-        from view.view import (
+        from views.view import (
             ApplyOptionsView,
             EnterOptionView,
             MemberSelectView,
