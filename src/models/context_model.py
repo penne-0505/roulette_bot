@@ -3,8 +3,8 @@ from typing import Any
 
 import discord
 
-from data_type.context_result_types import AmidakujiStateTypes, TypeRegistry
-from model.state_model import AmidakujiState
+from data_types.context_result_types import AmidakujiStateTypes, TypeRegistry
+from models.state_model import AmidakujiState
 
 
 @dataclass
