@@ -8,3 +8,5 @@ poetry.lock
 __pycache__/
 .dev.md
 .learned.md
+.clinerules
+poetry.lock
