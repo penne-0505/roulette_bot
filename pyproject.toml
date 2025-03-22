@@ -17,6 +17,16 @@ firebase-admin = "^6.6.0"
 [[tool.poetry.packages]]
 include = "src"
 
+
+[tool.poetry.group.dev.dependencies]
+pytest-asyncio = "^0.25.3"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
