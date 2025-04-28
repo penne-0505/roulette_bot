@@ -9,3 +9,4 @@ __pycache__/
 .dev.md
 .learned.md
 .clinerules
+.pytest_cache/
