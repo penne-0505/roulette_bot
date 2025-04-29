@@ -12,11 +12,11 @@ RUN pip install --no-cache-dir poetry
 # 依存関係ファイルをコピー
 COPY pyproject.toml poetry.lock ./
 
-# 依存関係をインストール (--no-devで開発用依存関係を除外)
 # poetry config virtualenvs.create false でプロジェクト内に仮想環境を作成しないように設定
 # --no-interaction --no-ansi オプションを追加して非対話的に実行
+# --no-root オプションを追加して現在のプロジェクト自体はインストールしない
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-interaction --no-ansi
+    poetry install --without dev --no-interaction --no-ansi --no-root
 
 # ソースコードをコピー
 # cred/ ディレクトリのコピーは削除

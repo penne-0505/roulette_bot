@@ -4,9 +4,9 @@ poetry.lock
 cred/
 .venv/
 .idx/
-poetry.lock
 __pycache__/
 .dev.md
 .learned.md
 .clinerules
 .pytest_cache/
+poetry.lock
