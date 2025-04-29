@@ -22,12 +22,10 @@ class CommandsTranslator(discord.app_commands.Translator):
             "ja": {
                 "ping": "ping",
                 "amidakuji": "あみだくじ",
-                # "toggle_embed_mode": "埋め込み形式切替", # なぜか、regexのバリデーションに引っかかる
             },
             "en-US": {
                 "ping": "ping",
                 "amidakuji": "amidakuji",
-                # "toggle_embed_mode": "toggle embed mode",
             },
         }
 
@@ -40,7 +38,6 @@ class CommandsTranslator(discord.app_commands.Translator):
         return None
 
 
-# Emoji
 EMOJI_LOL_TOP = 1345304239970324511
 EMOJI_LOL_SUP = 1345304221477507114
 EMOJI_LOL_MID = 1345304210669043752
@@ -48,7 +45,6 @@ EMOJI_LOL_JG = 1345304200741130240
 EMOJI_LOL_BOT = 1345304183091368006
 
 
-# logging constants
 INFO = f"{Fore.BLUE}[INFO]{Style.RESET_ALL}: "
 ERROR = f"{Fore.RED}[ERROR]{Style.RESET_ALL}: "
 WARN = f"{Fore.YELLOW}[WARNING]{Style.RESET_ALL}: "

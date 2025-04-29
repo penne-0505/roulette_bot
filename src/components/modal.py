@@ -44,7 +44,6 @@ class OptionNameEnterModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.context.state == AmidakujiState.NEED_MORE_OPTIONS:
-            # 二回目以降
             result = self.context.history[AmidakujiState.OPTION_NAME_ENTERED]
             result.append(self.option_name_input.value)
 
@@ -54,7 +53,6 @@ class OptionNameEnterModal(discord.ui.Modal):
                 interaction=interaction,
             )
         else:
-            # 初回入力
             result = [self.option_name_input.value]
 
             self.context.update_context(

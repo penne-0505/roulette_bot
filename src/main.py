@@ -6,7 +6,6 @@ import time
 import discord
 import psutil
 from discord.app_commands import locale_str
-from dotenv import load_dotenv
 
 from db_manager import db
 from models.context_model import CommandContext
@@ -32,8 +31,6 @@ logging.basicConfig(
     datefmt=DATEFORMAT,
 )
 
-# TODO: テンプレート削除機能の実装 -> 別のstateを追加?
-
 
 class Client(discord.Client):
     def __init__(self):
@@ -41,13 +38,10 @@ class Client(discord.Client):
         self.start_time = time.time()
 
     async def on_ready(self):
-        # コマンドの同期
         await self.sync_commands()
 
-        # デフォルトテンプレートの初期化
         db._init_default_templates()
 
-        # 以下ログ
         logging.info(
             INFO + f"Logged in as {green(self.user.name)} ({blue(self.user.id)})"
         )
@@ -56,7 +50,6 @@ class Client(discord.Client):
         logging.info(INFO + bold("Bot is ready."))
 
     async def setup_hook(self) -> None:
-        # コマンドの翻訳機能を設定
         await tree.set_translator(CommandsTranslator())
 
     async def sync_commands(self) -> None:
@@ -67,13 +60,11 @@ class Client(discord.Client):
         interaction: discord.Interaction,
         command: discord.app_commands.Command | discord.app_commands.ContextMenu,
     ):
-        # コマンド実行時に、ユーザーがDBに登録されていない場合、登録する
         exec_user = interaction.user
         user_id = exec_user.id
         if not db.user_is_exist(user_id):
             db.init_user(user_id=user_id, name=exec_user.name)
 
-        # 装飾してログを出力
         exec_guild = yellow(interaction.guild) if interaction.guild else "DM"
         exec_channel = magenta(interaction.channel) if interaction.channel else "(DM)"
         user_name = blue(exec_user.name)
@@ -94,36 +85,26 @@ client.sync_commands()
 async def command_ping(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
 
-    # Websocketレイテンシ
     ws_latency = round(client.latency * 1000)
 
-    # APIレイテンシ
     start_time = time.perf_counter()
     message = await interaction.followup.send("測定中...")
     end_time = time.perf_counter()
     api_latency = round((end_time - start_time) * 1000)
 
-    # リソース使用量
     process = psutil.Process()
-    memory_usage = process.memory_info().rss / 1024 / 1024  # MB
+    memory_usage = process.memory_info().rss / 1024 / 1024
     cpu_usage = process.cpu_percent()
 
     embed = discord.Embed(
         title="🏓 Pong!", color=discord.Color.green(), timestamp=datetime.datetime.now()
     )
 
-    # fmt: off
     embed.add_field(
         name="📡 Connection",
-        value=(
-            "```\n"
-            f"Websocket: {ws_latency}ms\n"
-            f"API: {api_latency}ms\n"
-            "```"
-        ),
+        value=(f"```\nWebsocket: {ws_latency}ms\nAPI: {api_latency}ms\n```"),
         inline=False,
     )
-    # fmt: on
 
     embed.add_field(
         name="🤖 Status",
@@ -136,7 +117,6 @@ async def command_ping(interaction: discord.Interaction):
         inline=False,
     )
 
-    # 稼働時間
     uptime_s = time.time() - client.start_time
     uptime_m = int(uptime_s / 60)
     uptime_h = int(uptime_m / 60)
@@ -212,6 +192,5 @@ async def command_toggle_embed_mode(interaction: discord.Interaction):
 
 
 if __name__ == "__main__":
-    load_dotenv()
     TOKEN = os.getenv("CLIENT_TOKEN")
     client.run(TOKEN)

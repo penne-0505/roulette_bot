@@ -9,11 +9,6 @@ from models.state_model import AmidakujiState
 
 @dataclass
 class CommandContext:
-    """
-    要素間で情報を受け渡したり、次のステップを明示的にするために使う。
-    コマンドの実行から全ての処理終了まで、同じインスタンスを使い続ける想定
-    """
-
     interaction: discord.Interaction
     state: AmidakujiState
     _result: AmidakujiStateTypes.EXPECTED_TYPES = field(default=None)
@@ -37,7 +32,6 @@ class CommandContext:
 
     @history.setter
     def history(self, value: Any) -> None:
-        # 直接historyに値をセットすることを防ぐ
         raise AttributeError(
             "You cannot directly edit the history. When you set a result, it is automatically added to the history."
         )

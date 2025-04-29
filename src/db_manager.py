@@ -2,7 +2,6 @@ import os
 
 import firebase_admin
 import requests
-from dotenv import load_dotenv
 from firebase_admin import credentials, firestore
 
 import utils
@@ -61,7 +60,6 @@ class InfoRepository:
 
 class DBManager(metaclass=utils.Singleton):
     def __init__(self):
-        load_dotenv()
         document = requests.get(os.getenv("FIREBASE_CREDENTIALS")).json()
         self.cred = credentials.Certificate(document)
 
@@ -120,7 +118,7 @@ class DBManager(metaclass=utils.Singleton):
 
     def get_default_templates(self) -> list[Template]:
         templates = self.info_repository.read_document("default_templates")
-        templates = templates["default_templates"]  # list
+        templates = templates["default_templates"]
         return [self._dict_to_template(t) for t in templates]
 
     def toggle_embed_mode(self) -> None:
@@ -162,7 +160,6 @@ class DBManager(metaclass=utils.Singleton):
         except Exception:
             raise
 
-    # これいる？
     def set_user(self, user: UserInfo) -> None:
         least_template = (
             self._template_to_dict(user.least_template)
@@ -256,7 +253,6 @@ class DBManager(metaclass=utils.Singleton):
             raise
 
 
-# 変にいろんなことしたくないので、モジュールレベルでインスタンスを作成(シングルトン)
 db = DBManager()
 
 if __name__ == "__main__":
