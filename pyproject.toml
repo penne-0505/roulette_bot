@@ -11,6 +11,8 @@ discord-py = "^2.4.0"
 firebase-admin = "^6.6.0"
 psutil = "^6.1.1"
 colorama = "^0.4.6"
+fastapi = "^0.111.0"  # 追加
+uvicorn = {extras = ["standard"], version = "^0.30.1"} # 追加
 
 
 [[tool.poetry.packages]]

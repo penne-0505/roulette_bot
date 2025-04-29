@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 import os
@@ -8,6 +9,7 @@ import psutil
 from discord.app_commands import locale_str
 
 from db_manager import db
+from health_check import run_server
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
 from utils import (
@@ -191,6 +193,15 @@ async def command_toggle_embed_mode(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-if __name__ == "__main__":
+async def main():
     TOKEN = os.getenv("CLIENT_TOKEN")
-    client.run(TOKEN)
+    if not TOKEN:
+        logging.error("CLIENT_TOKEN environment variable not set.")
+        return
+
+    async with client:
+        await asyncio.gather(client.start(TOKEN), run_server())
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
