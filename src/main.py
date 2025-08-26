@@ -213,9 +213,6 @@ async def command_toggle_embed_mode(interaction: discord.Interaction):
 
 
 async def main():
-    """
-    Discord BotとFastAPIサーバーを並行して起動する。
-    """
     TOKEN = os.getenv("CLIENT_TOKEN")
     if not TOKEN:
         logging.error("CLIENT_TOKEN environment variable not set.")

@@ -1,7 +1,0 @@
-.pytest_cache/
-.vscode/
-.cred/
-.env
-*.pyc
-__pycache__/
-.git/
