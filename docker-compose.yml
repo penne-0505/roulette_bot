@@ -1,0 +1,9 @@
+version: "3.9"
+services:
+  bot:
+    build: .
+    environment:
+      - CLIENT_TOKEN=${CLIENT_TOKEN}
+      - FIREBASE_CREDENTIALS=${FIREBASE_CREDENTIALS}
+    ports:
+      - "8000:8000"

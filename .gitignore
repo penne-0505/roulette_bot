@@ -9,4 +9,3 @@ __pycache__/
 .learned.md
 .clinerules
 .pytest_cache/
-poetry.lock
