@@ -8,7 +8,7 @@
    docker build -t roulette-bot .
    ```
 
-2. **Run the container** (exposes the health check server on port 8000):
+2. **Run the container**:
 
    ```bash
    docker run -e CLIENT_TOKEN=<your_token> \
