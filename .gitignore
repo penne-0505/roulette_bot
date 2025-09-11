@@ -1,5 +1,4 @@
 .env
-poetry.lock
 .vscode/
 cred/
 .venv/
@@ -9,4 +8,3 @@ __pycache__/
 .learned.md
 .clinerules
 .pytest_cache/
-poetry.lock
