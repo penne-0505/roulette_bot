@@ -9,7 +9,6 @@ import psutil
 from discord.app_commands import locale_str
 
 from db_manager import db
-from health_check import run_server
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
 from utils import (
@@ -219,7 +218,7 @@ async def main():
         return
 
     async with client:
-        await asyncio.gather(client.start(TOKEN), run_server())
+        await client.start(TOKEN)
 
 
 if __name__ == "__main__":
