@@ -143,6 +143,16 @@ class DBManager(metaclass=utils.Singleton):
             choices=data["choices"],
         )
 
+    def _read_or_initialize_embed_mode(
+        self, info_repository: InfoRepository
+    ) -> tuple[dict[str, str], bool]:
+        data = info_repository.read_document("embed_mode")
+        should_initialize = not isinstance(data, dict) or "embed_mode" not in data
+        if should_initialize:
+            data = {"embed_mode": "compact"}
+            info_repository.create_document("embed_mode", data)
+        return data, should_initialize
+
     def _init_default_templates(self) -> None:
         info_repository = self._get_info_repository()
         default_templates = [
@@ -170,14 +180,13 @@ class DBManager(metaclass=utils.Singleton):
     def toggle_embed_mode(self) -> None:
         info_repository = self._get_info_repository()
         try:
-            data = info_repository.read_document("embed_mode")
-            if data is None:
-                data = {"embed_mode": "compact"}
+            data, initialized = self._read_or_initialize_embed_mode(info_repository)
+            if initialized:
+                return
+            if data["embed_mode"] == "compact":
+                data["embed_mode"] = "detailed"
             else:
-                if data["embed_mode"] == "compact":
-                    data["embed_mode"] = "detailed"
-                else:
-                    data["embed_mode"] = "compact"
+                data["embed_mode"] = "compact"
             info_repository.create_document("embed_mode", data)
         except Exception:
             raise
@@ -185,8 +194,8 @@ class DBManager(metaclass=utils.Singleton):
     def get_embed_mode(self) -> str:
         info_repository = self._get_info_repository()
         try:
-            data = info_repository.read_document("embed_mode")
-            return data.get("embed_mode", "compact")
+            data, _ = self._read_or_initialize_embed_mode(info_repository)
+            return data["embed_mode"]
 
         except Exception:
             raise
