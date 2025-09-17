@@ -89,7 +89,7 @@ class MemberSelect(discord.ui.UserSelect):
                         resolved_user = None
                 if resolved_user is not None:
                     result.append(resolved_user)
-        result = [user for user in result if user is not None and not user.bot]
+        result = remove_bots([user for user in result if user is not None])
 
         flow = _get_flow(self.context)
         await flow.dispatch(
