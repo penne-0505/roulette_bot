@@ -27,26 +27,32 @@ def create_pair_from_list(users: list[discord.User], groupes: list[str]) -> Pair
 def create_embeds_from_pairs(
     pairs: PairList, mode: ResultEmbedMode = ResultEmbedMode.COMPACT
 ) -> list[discord.Embed]:
-    embeds = []
+    embeds: list[discord.Embed] = []
 
     pair_list = pairs.pairs
+    if isinstance(mode, ResultEmbedMode):
+        normalized_mode = mode.value
+    else:
+        normalized_mode = str(mode).lower()
 
-    if mode == "compact":
+    if normalized_mode == ResultEmbedMode.COMPACT.value:
         for pair in pair_list:
             embed = discord.Embed()
+            avatar_asset = getattr(pair.user, "display_avatar", None)
             embed.set_author(
-                icon_url=pair.user.avatar.url,
+                icon_url=getattr(avatar_asset, "url", None),
                 name=f" ┃ {pair.choice}",
             )
             embeds.append(embed)
         return embeds
 
-    elif mode == "detailed":
+    elif normalized_mode == ResultEmbedMode.DETAILED.value:
         for pair in pair_list:
             embed = discord.Embed()
             embed.title = f"> {pair.choice}"
+            avatar_asset = getattr(pair.user, "display_avatar", None)
             embed.set_author(
-                icon_url=pair.user.avatar.url,
+                icon_url=getattr(avatar_asset, "url", None),
                 name=pair.user.display_name,
             )
             embeds.append(embed)
