@@ -1,15 +1,21 @@
 import discord
 
-from data_interface import DataInterface
 from db_manager import db
 from models.context_model import CommandContext
 from models.model import Template
 from models.state_model import AmidakujiState
 
 
+def _get_flow(context: CommandContext):
+    services = context.services
+    flow = getattr(services, "flow", None) if services is not None else None
+    if flow is None:
+        raise RuntimeError("Flow controller is not available")
+    return flow
+
+
 class TemplateSelect(discord.ui.Select):
     def __init__(self, context: CommandContext, templates: list[Template]):
-        # templatesからSelectOptionを作成
         super().__init__(
             placeholder="テンプレートを選択してください",
             options=[
@@ -19,22 +25,23 @@ class TemplateSelect(discord.ui.Select):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        # 取得した値を元にテンプレートを取得
         selected_template_title = self.values[0]
         current_user = db.get_user(interaction.user.id)
-        user_templates = current_user.custom_templates
+        user_templates = current_user.custom_templates if current_user else []
         selected_template = next(
-            t for t in user_templates if t.title == selected_template_title
+            (t for t in user_templates if t.title == selected_template_title),
+            None,
         )
 
-        self.context.update_context(
-            state=AmidakujiState.TEMPLATE_DETERMINED,
-            result=selected_template,
-            interaction=interaction,
-        )
+        if selected_template is None:
+            raise ValueError("Template is not selected")
 
-        interface = DataInterface(context=self.context)
-        await interface.forward()
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.TEMPLATE_DETERMINED,
+            selected_template,
+            interaction,
+        )
 
 
 class MemberSelect(discord.ui.UserSelect):
@@ -47,7 +54,6 @@ class MemberSelect(discord.ui.UserSelect):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        # Memberの可能性があるので、Userに変換(APIの仕様上、DM内ならUser, サーバー内ならMemberに統一されている)
         result = []
         for user in self.values:
             if isinstance(user, discord.User):
@@ -55,14 +61,11 @@ class MemberSelect(discord.ui.UserSelect):
             elif isinstance(user, discord.Member):
                 result.append(self.context.interaction.client.get_user(user.id))
 
-        # botを除外
-        result = [user for user in result if user is not user.bot]
+        result = [user for user in result if user is not None and not user.bot]
 
-        self.context.update_context(
-            state=AmidakujiState.MEMBER_SELECTED,
-            result=result,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MEMBER_SELECTED,
+            result,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
