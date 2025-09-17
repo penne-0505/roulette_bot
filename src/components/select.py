@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import discord
 
-from db_manager import db
 from models.context_model import CommandContext
 from models.model import Template
 from models.state_model import AmidakujiState
+
+if TYPE_CHECKING:
+    from db_manager import DBManager
 
 
 def _get_flow(context: CommandContext):
@@ -12,6 +18,17 @@ def _get_flow(context: CommandContext):
     if flow is None:
         raise RuntimeError("Flow controller is not available")
     return flow
+
+
+def _get_db_manager(context: CommandContext, interaction: discord.Interaction) -> "DBManager":
+    services = context.services
+    db_manager = getattr(services, "db", None) if services is not None else None
+    if db_manager is None:
+        client = getattr(interaction, "client", None)
+        db_manager = getattr(client, "db", None) if client is not None else None
+    if db_manager is None:
+        raise RuntimeError("DB manager is not available")
+    return db_manager
 
 
 class TemplateSelect(discord.ui.Select):
@@ -26,7 +43,8 @@ class TemplateSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         selected_template_title = self.values[0]
-        current_user = db.get_user(interaction.user.id)
+        db_manager = _get_db_manager(self.context, interaction)
+        current_user = db_manager.get_user(interaction.user.id)
         user_templates = current_user.custom_templates if current_user else []
         selected_template = next(
             (t for t in user_templates if t.title == selected_template_title),

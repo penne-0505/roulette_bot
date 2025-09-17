@@ -3,12 +3,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import discord
 
 import data_process
-from db_manager import db
 from flow.actions import (
     DeferResponseAction,
     FlowAction,
@@ -27,6 +26,21 @@ from views.view import (
 )
 from components.modal import OptionNameEnterModal, TitleEnterModal
 
+if TYPE_CHECKING:
+    from db_manager import DBManager
+
+
+def resolve_db_manager(context: CommandContext, services: Any) -> "DBManager":
+    db_manager = getattr(services, "db", None) if services is not None else None
+    if db_manager is None:
+        interaction_client = getattr(context.interaction, "client", None)
+        db_manager = (
+            getattr(interaction_client, "db", None) if interaction_client is not None else None
+        )
+    if db_manager is None:
+        raise RuntimeError("DB manager is not available")
+    return db_manager
+
 
 class BaseStateHandler(ABC):
     """Base class for state handlers."""
@@ -43,7 +57,8 @@ class UseExistingHandler(BaseStateHandler):
         self, context: CommandContext, services: Any
     ) -> FlowAction | Sequence[FlowAction]:
         target_user = context.interaction.user
-        user_data = db.get_user(target_user.id)
+        db_manager = resolve_db_manager(context, services)
+        user_data = db_manager.get_user(target_user.id)
         templates = user_data.custom_templates if user_data else []
 
         view = SelectTemplateView(context=context, templates=templates)
@@ -99,7 +114,8 @@ class TemplateCreatedHandler(BaseStateHandler):
             raise ValueError("Template is not selected")
 
         user_id = context.interaction.user.id
-        db.add_custom_template(user_id=user_id, template=template)
+        db_manager = resolve_db_manager(context, services)
+        db_manager.add_custom_template(user_id=user_id, template=template)
 
         embed = discord.Embed(
             title="📝テンプレートを保存しました",
@@ -124,7 +140,8 @@ class UseHistoryHandler(BaseStateHandler):
         self, context: CommandContext, services: Any
     ) -> FlowAction | Sequence[FlowAction]:
         current_user = context.interaction.user
-        user_data = db.get_user(current_user.id)
+        db_manager = resolve_db_manager(context, services)
+        user_data = db_manager.get_user(current_user.id)
         user_least_template = getattr(user_data, "least_template", None) if user_data else None
 
         if not user_least_template:
@@ -167,7 +184,8 @@ class TemplateDeterminedHandler(BaseStateHandler):
             raise ValueError("Template is not selected")
 
         user_id = context.interaction.user.id
-        db.set_least_template(user_id, template)
+        db_manager = resolve_db_manager(context, services)
+        db_manager.set_least_template(user_id, template)
 
         view = MemberSelectView(context=context)
         return SendViewAction(view=view)
@@ -187,8 +205,9 @@ class MemberSelectedHandler(BaseStateHandler):
 
         choices = selected_template.choices
         pairs = data_process.create_pair_from_list(selected_members, choices)
+        db_manager = resolve_db_manager(context, services)
         embeds = data_process.create_embeds_from_pairs(
-            pairs=pairs, mode=db.get_embed_mode()
+            pairs=pairs, mode=db_manager.get_embed_mode()
         )
 
         return SendMessageAction(embeds=embeds, ephemeral=False)

@@ -1,9 +1,10 @@
-import os
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
 
 import firebase_admin
-import requests
-from dotenv import load_dotenv
-from firebase_admin import credentials, firestore
+from firebase_admin import App, credentials, firestore
 
 import utils
 from models.model import Template, UserInfo
@@ -60,16 +61,57 @@ class InfoRepository:
 
 
 class DBManager(metaclass=utils.Singleton):
-    def __init__(self):
-        load_dotenv()
-        document = requests.get(os.getenv("FIREBASE_CREDENTIALS")).json()
-        self.cred = credentials.Certificate(document)
+    def __init__(self) -> None:
+        self._app: App | None = None
+        self.db: firestore.firestore.Client | None = None
+        self.user_repository: UserRepository | None = None
+        self.info_repository: InfoRepository | None = None
 
-        firebase_admin.initialize_app(self.cred)
+    @classmethod
+    def get_instance(cls) -> "DBManager":
+        return cls()
 
-        self.db = firestore.client()
+    def initialize(self, credentials_source: dict[str, Any] | Path) -> None:
+        if self._app is not None:
+            raise RuntimeError("DBManager is already initialized")
+
+        certificate_source: dict[str, Any] | str
+        if isinstance(credentials_source, Path):
+            certificate_source = str(credentials_source)
+        else:
+            certificate_source = credentials_source
+
+        app = firebase_admin.initialize_app(
+            credentials.Certificate(certificate_source)
+        )
+        self.with_app(app)
+
+    def with_app(self, app: App) -> None:
+        if self._app is not None and self._app is not app:
+            raise RuntimeError(
+                "DBManager is already initialized with a different Firebase app"
+            )
+
+        self._app = app
+        self.db = firestore.client(app=app)
         self.user_repository = UserRepository(self.db)
         self.info_repository = InfoRepository(self.db)
+
+    def _ensure_configured(self) -> None:
+        if self.user_repository is None or self.info_repository is None or self.db is None:
+            raise RuntimeError(
+                "DBManager is not configured. Call initialize() or with_app() before use."
+            )
+
+    def _get_user_repository(self) -> UserRepository:
+        self._ensure_configured()
+        assert self.user_repository is not None
+        return self.user_repository
+
+    def _get_info_repository(self) -> InfoRepository:
+        self._ensure_configured()
+        assert self.info_repository is not None
+        return self.info_repository
 
     def _validate_user(self, data: dict) -> bool:
         return data["id"] is not None and data["name"] is not None
@@ -102,6 +144,7 @@ class DBManager(metaclass=utils.Singleton):
         )
 
     def _init_default_templates(self) -> None:
+        info_repository = self._get_info_repository()
         default_templates = [
             Template(
                 title="League of Legends",
@@ -116,16 +159,18 @@ class DBManager(metaclass=utils.Singleton):
             self._template_to_dict(template) for template in default_templates
         ]
         default_templates = {"default_templates": default_templates}
-        self.info_repository.create_document("default_templates", default_templates)
+        info_repository.create_document("default_templates", default_templates)
 
     def get_default_templates(self) -> list[Template]:
-        templates = self.info_repository.read_document("default_templates")
+        info_repository = self._get_info_repository()
+        templates = info_repository.read_document("default_templates")
         templates = templates["default_templates"]  # list
         return [self._dict_to_template(t) for t in templates]
 
     def toggle_embed_mode(self) -> None:
+        info_repository = self._get_info_repository()
         try:
-            data = self.info_repository.read_document("embed_mode")
+            data = info_repository.read_document("embed_mode")
             if data is None:
                 data = {"embed_mode": "compact"}
             else:
@@ -133,19 +178,21 @@ class DBManager(metaclass=utils.Singleton):
                     data["embed_mode"] = "detailed"
                 else:
                     data["embed_mode"] = "compact"
-            self.info_repository.create_document("embed_mode", data)
+            info_repository.create_document("embed_mode", data)
         except Exception:
             raise
 
     def get_embed_mode(self) -> str:
+        info_repository = self._get_info_repository()
         try:
-            data = self.info_repository.read_document("embed_mode")
+            data = info_repository.read_document("embed_mode")
             return data.get("embed_mode", "compact")
 
         except Exception:
             raise
 
     def init_user(self, user_id: int, name: str) -> None:
+        user_repository = self._get_user_repository()
         default_templates = self.get_default_templates()
         default_templates = [
             self._template_to_dict(template) for template in default_templates
@@ -158,12 +205,13 @@ class DBManager(metaclass=utils.Singleton):
             "custom_templates": default_templates,
         }
         try:
-            self.user_repository.create_document(user_id, data)
+            user_repository.create_document(user_id, data)
         except Exception:
             raise
 
     # これいる？
     def set_user(self, user: UserInfo) -> None:
+        user_repository = self._get_user_repository()
         least_template = (
             self._template_to_dict(user.least_template)
             if user.least_template is not None
@@ -179,13 +227,14 @@ class DBManager(metaclass=utils.Singleton):
             "custom_templates": custom_templates,
         }
         try:
-            self.user_repository.create_document(user.id, data)
+            user_repository.create_document(user.id, data)
         except Exception:
             raise
 
     def get_user(self, user_id: int) -> UserInfo:
+        user_repository = self._get_user_repository()
         try:
-            data = self.user_repository.read_document(user_id)
+            data = user_repository.read_document(user_id)
             if data is None:
                 return None
             least_template = (
@@ -206,8 +255,9 @@ class DBManager(metaclass=utils.Singleton):
             raise
 
     def delete_user(self, user_id: int) -> None:
+        user_repository = self._get_user_repository()
         try:
-            self.user_repository.delete_document(user_id)
+            user_repository.delete_document(user_id)
         except Exception:
             raise
 
@@ -255,9 +305,6 @@ class DBManager(metaclass=utils.Singleton):
         except Exception:
             raise
 
-
-# 変にいろんなことしたくないので、モジュールレベルでインスタンスを作成(シングルトン)
-db = DBManager()
 
 if __name__ == "__main__":
     pass
