@@ -47,7 +47,7 @@ def test_create_embeds_detailed_mode_handles_missing_custom_avatar() -> None:
     )
     pair_list = PairList(pairs=[Pair(user=user, choice="Jungle")])
 
-    embeds = create_embeds_from_pairs(pair_list, mode="DETAILED")
+    embeds = create_embeds_from_pairs(pair_list, mode=ResultEmbedMode.DETAILED)
 
     assert len(embeds) == 1
     embed = embeds[0]
