@@ -30,13 +30,15 @@ if TYPE_CHECKING:
     from db_manager import DBManager
 
 
+def get_db_manager_from_source(source: Any) -> Any:
+    """Helper to safely get the db manager from a source object."""
+    return getattr(source, "db", None) if source is not None else None
+
 def resolve_db_manager(context: CommandContext, services: Any) -> "DBManager":
-    db_manager = getattr(services, "db", None) if services is not None else None
+    db_manager = get_db_manager_from_source(services)
     if db_manager is None:
         interaction_client = getattr(context.interaction, "client", None)
-        db_manager = (
-            getattr(interaction_client, "db", None) if interaction_client is not None else None
-        )
+        db_manager = get_db_manager_from_source(interaction_client)
     if db_manager is None:
         raise RuntimeError("DB manager is not available")
     return db_manager
