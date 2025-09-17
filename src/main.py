@@ -41,9 +41,6 @@ class Client(discord.Client):
         self.start_time = time.time()
 
     async def on_ready(self):
-        # コマンドの同期
-        await self.sync_commands()
-
         # デフォルトテンプレートの初期化
         db._init_default_templates()
 
@@ -58,9 +55,8 @@ class Client(discord.Client):
     async def setup_hook(self) -> None:
         # コマンドの翻訳機能を設定
         await tree.set_translator(CommandsTranslator())
-
-    async def sync_commands(self) -> None:
         await tree.sync()
+        logging.info(INFO + "Application commands synchronized.")
 
     async def on_app_command_completion(
         self,
@@ -87,7 +83,6 @@ class Client(discord.Client):
 
 client = Client()
 tree = discord.app_commands.CommandTree(client=client)
-client.sync_commands()
 
 
 @tree.command(name=locale_str("ping"), description="Ping the bot. 🏓")
@@ -217,7 +212,10 @@ async def main():
         logging.error("CLIENT_TOKEN environment variable not set.")
         return
 
+    logging.info(INFO + "Client initialized. Setup hook will handle command sync.")
+
     async with client:
+        logging.info(INFO + "Starting Discord client event loop.")
         await client.start(TOKEN)
 
 
