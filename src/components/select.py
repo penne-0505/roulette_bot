@@ -91,7 +91,7 @@ class MemberSelect(discord.ui.UserSelect):
                     result.append(resolved_user)
         result = [user for user in result if user is not None and not user.bot]
 
-        flow = _get_flow(self.context
+        flow = _get_flow(self.context)
         await flow.dispatch(
             AmidakujiState.MEMBER_SELECTED,
             result,
