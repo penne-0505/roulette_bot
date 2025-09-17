@@ -181,8 +181,7 @@ class DBManager(metaclass=utils.Singleton):
         info_repository = self._get_info_repository()
         try:
             data, initialized = self._read_or_initialize_embed_mode(info_repository)
-            if initialized:
-                return
+            # Do not return early; always perform the toggle
             if data["embed_mode"] == "compact":
                 data["embed_mode"] = "detailed"
             else:
