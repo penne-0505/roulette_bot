@@ -125,7 +125,9 @@ class UseHistoryHandler(BaseStateHandler):
     ) -> FlowAction | Sequence[FlowAction]:
         current_user = context.interaction.user
         user_data = db.get_user(current_user.id)
-        user_least_template = user_data.least_template if user_data else None
+        user_least_template = (
+            getattr(user_data, "least_template", None) if user_data else None
+        )
 
         if not user_least_template:
             embed = discord.Embed(
