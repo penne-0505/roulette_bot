@@ -9,10 +9,10 @@ import discord
 import psutil
 from discord.app_commands import locale_str
 
-from db_manager import db
 from data_interface import FlowController
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
+from services.app_context import create_db_manager
 from utils import (
     DATEFORMAT,
     FORMAT,
@@ -41,10 +41,11 @@ class Client(discord.Client):
     def __init__(self):
         super().__init__(intents=intents)
         self.start_time = time.time()
+        self.db = create_db_manager()
 
     async def on_ready(self):
         # デフォルトテンプレートの初期化
-        db._init_default_templates()
+        self.db._init_default_templates()
 
         # 以下ログ
         logging.info(
@@ -68,8 +69,8 @@ class Client(discord.Client):
         # コマンド実行時に、ユーザーがDBに登録されていない場合、登録する
         exec_user = interaction.user
         user_id = exec_user.id
-        if not db.user_is_exist(user_id):
-            db.init_user(user_id=user_id, name=exec_user.name)
+        if not self.db.user_is_exist(user_id):
+            self.db.init_user(user_id=user_id, name=exec_user.name)
 
         # 装飾してログを出力
         exec_guild = yellow(interaction.guild) if interaction.guild else "DM"
@@ -177,7 +178,7 @@ async def command_amidakuji(
 ):
     await interaction.response.defer(thinking=True, ephemeral=True)
 
-    services = SimpleNamespace()
+    services = SimpleNamespace(db=interaction.client.db)
     context = CommandContext(
         interaction=interaction,
         state=AmidakujiState.COMMAND_EXECUTED,
@@ -201,8 +202,12 @@ async def command_amidakuji(
 async def command_toggle_embed_mode(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True, ephemeral=True)
 
-    db.toggle_embed_mode()
-    current_mode = db.get_embed_mode()
+    db_manager = getattr(interaction.client, "db", None)
+    if db_manager is None:
+        raise RuntimeError("DB manager is not available")
+
+    db_manager.toggle_embed_mode()
+    current_mode = db_manager.get_embed_mode()
 
     embed = discord.Embed(
         title="埋め込みメッセージの表示形式を変更しました",
