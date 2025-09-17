@@ -1,9 +1,16 @@
 import discord
 
-from data_interface import DataInterface
 from models.context_model import CommandContext
 from models.model import Template
 from models.state_model import AmidakujiState
+
+
+def _get_flow(context: CommandContext):
+    services = context.services
+    flow = getattr(services, "flow", None) if services is not None else None
+    if flow is None:
+        raise RuntimeError("Flow controller is not available")
+    return flow
 
 
 class EnterOptionButton(discord.ui.Button):
@@ -12,14 +19,12 @@ class EnterOptionButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        self.context.update_context(
-            state=AmidakujiState.ENTER_OPTION_BUTTON_CLICKED,
-            result=interaction,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.ENTER_OPTION_BUTTON_CLICKED,
+            interaction,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
 
 
 class NeedMoreOptionsButton(discord.ui.Button):
@@ -30,14 +35,12 @@ class NeedMoreOptionsButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        self.context.update_context(
-            state=AmidakujiState.NEED_MORE_OPTIONS,
-            result=interaction,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.NEED_MORE_OPTIONS,
+            interaction,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
 
 
 class ApplyOptionsButton(discord.ui.Button):
@@ -51,14 +54,12 @@ class ApplyOptionsButton(discord.ui.Button):
             choices=self.context.history[AmidakujiState.OPTION_NAME_ENTERED],
         )
 
-        self.context.update_context(
-            state=AmidakujiState.TEMPLATE_CREATED,
-            result=template,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.TEMPLATE_CREATED,
+            template,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
 
 
 class UseHistoryButton(discord.ui.Button):
@@ -69,14 +70,12 @@ class UseHistoryButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        self.context.update_context(
-            state=AmidakujiState.MODE_USE_HISTORY,
-            result=interaction,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MODE_USE_HISTORY,
+            interaction,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
 
 
 class UseExistingButton(discord.ui.Button):
@@ -85,14 +84,12 @@ class UseExistingButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        self.context.update_context(
-            state=AmidakujiState.MODE_USE_EXISTING,
-            result=interaction,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MODE_USE_EXISTING,
+            interaction,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
 
 
 class CreateNewButton(discord.ui.Button):
@@ -101,11 +98,9 @@ class CreateNewButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        self.context.update_context(
-            state=AmidakujiState.MODE_CREATE_NEW,
-            result=interaction,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MODE_CREATE_NEW,
+            interaction,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()

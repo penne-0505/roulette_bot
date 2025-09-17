@@ -3,12 +3,14 @@ import datetime
 import logging
 import os
 import time
+from types import SimpleNamespace
 
 import discord
 import psutil
 from discord.app_commands import locale_str
 
 from db_manager import db
+from data_interface import FlowController
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
 from utils import (
@@ -180,10 +182,15 @@ async def command_amidakuji(
 ):
     await interaction.response.defer(thinking=True, ephemeral=True)
 
+    services = SimpleNamespace()
     context = CommandContext(
         interaction=interaction,
         state=AmidakujiState.COMMAND_EXECUTED,
+        services=services,
     )
+
+    flow = FlowController(context=context, services=services)
+    services.flow = flow
 
     context.result = interaction
 
