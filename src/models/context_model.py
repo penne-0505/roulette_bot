@@ -16,6 +16,7 @@ class CommandContext:
 
     interaction: discord.Interaction
     state: AmidakujiState
+    services: Any | None = None
     _result: AmidakujiStateTypes.EXPECTED_TYPES = field(default=None)
     _history: dict[AmidakujiState, AmidakujiStateTypes.EXPECTED_TYPES] = field(
         default_factory=dict

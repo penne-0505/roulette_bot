@@ -1,8 +1,15 @@
 import discord
 
-from data_interface import DataInterface
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
+
+
+def _get_flow(context: CommandContext):
+    services = context.services
+    flow = getattr(services, "flow", None) if services is not None else None
+    if flow is None:
+        raise RuntimeError("Flow controller is not available")
+    return flow
 
 
 class TitleEnterModal(discord.ui.Modal):
@@ -19,14 +26,12 @@ class TitleEnterModal(discord.ui.Modal):
         self.context = context
 
     async def on_submit(self, interaction: discord.Interaction):
-        self.context.update_context(
-            state=AmidakujiState.TEMPLATE_TITLE_ENTERED,
-            result=self.title_input.value,
-            interaction=interaction,
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.TEMPLATE_TITLE_ENTERED,
+            self.title_input.value,
+            interaction,
         )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
 
 
 class OptionNameEnterModal(discord.ui.Modal):
@@ -44,24 +49,14 @@ class OptionNameEnterModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.context.state == AmidakujiState.NEED_MORE_OPTIONS:
-            # 二回目以降
             result = self.context.history[AmidakujiState.OPTION_NAME_ENTERED]
             result.append(self.option_name_input.value)
-
-            self.context.update_context(
-                state=AmidakujiState.OPTION_NAME_ENTERED,
-                result=result,
-                interaction=interaction,
-            )
         else:
-            # 初回入力
             result = [self.option_name_input.value]
 
-            self.context.update_context(
-                state=AmidakujiState.OPTION_NAME_ENTERED,
-                result=result,
-                interaction=interaction,
-            )
-
-        interface = DataInterface(context=self.context)
-        await interface.forward()
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.OPTION_NAME_ENTERED,
+            result,
+            interaction,
+        )
