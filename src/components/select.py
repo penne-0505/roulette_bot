@@ -9,8 +9,6 @@ from models.model import Template
 from models.state_model import AmidakujiState
 
 if TYPE_CHECKING:
-    from data_interface import DataInterface
-    from db_manager import DBManager
 
 
 def _get_flow(context: CommandContext):
