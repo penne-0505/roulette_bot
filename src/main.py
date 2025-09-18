@@ -3,11 +3,13 @@ import datetime
 import logging
 import os
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import discord
 import psutil
 from discord.app_commands import locale_str
+from dotenv import load_dotenv
 
 from data_interface import FlowController
 from models.context_model import CommandContext
@@ -219,7 +221,25 @@ async def command_toggle_embed_mode(interaction: discord.Interaction):
 
 
 async def main():
-    TOKEN = os.getenv("CLIENT_TOKEN")
+    def load_client_token() -> str | None:
+        token = os.getenv("CLIENT_TOKEN")
+        if token:
+            return token.strip()
+
+        env_path = Path(".env")
+        if env_path.exists():
+            load_dotenv(env_path)
+            token = os.getenv("CLIENT_TOKEN")
+            if token:
+                logging.info(INFO + "CLIENT_TOKEN loaded from .env file.")
+                return token.strip()
+            logging.error("CLIENT_TOKEN not found in .env file.")
+        else:
+            logging.warning(INFO + "`.env` file not found. Falling back to environment variables.")
+
+        return None
+
+    TOKEN = load_client_token()
     if not TOKEN:
         logging.error("CLIENT_TOKEN environment variable not set.")
         return
