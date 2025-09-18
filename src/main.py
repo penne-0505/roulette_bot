@@ -223,8 +223,10 @@ async def command_toggle_embed_mode(interaction: discord.Interaction):
 async def main():
     def load_client_token() -> str | None:
         token = os.getenv("CLIENT_TOKEN")
-        if token:
-            return token.strip()
+        print(token[1])
+        # if token:
+            # return token.strip()
+        return token
 
         env_path = Path(".env")
         if env_path.exists():
