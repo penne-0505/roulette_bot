@@ -174,8 +174,15 @@ class DBManager(metaclass=utils.Singleton):
     def get_default_templates(self) -> list[Template]:
         info_repository = self._get_info_repository()
         templates = info_repository.read_document("default_templates")
-        templates = templates["default_templates"]  # list
-        return [self._dict_to_template(t) for t in templates]
+        if not isinstance(templates, dict) or "default_templates" not in templates:
+            self._init_default_templates()
+            templates = info_repository.read_document("default_templates")
+
+        template_items = templates.get("default_templates") if isinstance(templates, dict) else None
+        if not isinstance(template_items, list):
+            raise ValueError("Invalid default template data")
+
+        return [self._dict_to_template(t) for t in template_items]
 
     def toggle_embed_mode(self) -> None:
         info_repository = self._get_info_repository()
