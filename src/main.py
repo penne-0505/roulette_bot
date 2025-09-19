@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import hashlib
 import logging
 import os
 import time
@@ -228,12 +229,33 @@ async def main():
         else:
             logging.warning(INFO + "`.env` file not found. Falling back to environment variables.")
 
-        token = os.getenv("CLIENT_TOKEN")
-        if token:
-            return token.strip()
+        token_raw = os.getenv("CLIENT_TOKEN")
+        if token_raw is None:
+            logging.error("CLIENT_TOKEN not found in environment variables.")
+            return None
 
-        logging.error("CLIENT_TOKEN not found in environment variables.")
-        return None
+        token = token_raw.strip()
+        if not token:
+            logging.error("CLIENT_TOKEN environment variable is empty after trimming whitespace.")
+            return None
+
+        if token != token_raw:
+            logging.warning(INFO + "CLIENT_TOKEN contained leading/trailing whitespace; trimmed before use.")
+
+        token_digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:8]
+        token_length = len(token)
+        logging.info(
+            INFO
+            + f"CLIENT_TOKEN detected (length={token_length}, sha256_prefix={token_digest})."
+        )
+
+        if token.count(".") != 2:
+            logging.warning(
+                INFO
+                + "CLIENT_TOKEN does not match the expected Discord bot token format (two dots)."
+            )
+
+        return token
 
     TOKEN = load_client_token()
     if not TOKEN:
