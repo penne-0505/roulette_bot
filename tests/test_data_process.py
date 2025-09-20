@@ -1,5 +1,8 @@
-from data_process import create_embeds_from_pairs
-from models.model import Pair, PairList, ResultEmbedMode
+from types import SimpleNamespace
+
+import data_process
+from data_process import create_embeds_from_pairs, create_pair_from_list
+from models.model import Pair, PairList, ResultEmbedMode, SelectionMode
 
 
 class DummyAsset:
@@ -54,4 +57,40 @@ def test_create_embeds_detailed_mode_handles_missing_custom_avatar() -> None:
     assert embed.title == "> Jungle"
     assert embed.author.icon_url == "https://example.com/default.png"
     assert embed.author.name == "Default Avatar User"
+
+
+def test_create_pair_from_list_bias_reduction_respects_weights(monkeypatch) -> None:
+    user_a = SimpleNamespace(id=1, display_name="UserA")
+    user_b = SimpleNamespace(id=2, display_name="UserB")
+
+    groupes = ["Top", "Jungle"]
+
+    def fake_shuffle(sequence):
+        # Keep order stable for deterministic testing
+        return None
+
+    def fake_choices(population, weights, k):
+        assert k == 1
+        if weights[0] == 0.0:
+            return [population[1]]
+        return [population[0]]
+
+    monkeypatch.setattr(data_process.random, "shuffle", fake_shuffle)
+    monkeypatch.setattr(data_process.random, "choices", fake_choices)
+
+    pairs = create_pair_from_list(
+        [user_a, user_b],
+        groupes,
+        selection_mode=SelectionMode.BIAS_REDUCTION,
+        weights={
+            user_a.id: {"Top": 0.0, "Jungle": 1.0},
+            user_b.id: {"Top": 1.0, "Jungle": 1.0},
+        },
+    )
+
+    assert len(pairs.pairs) == 2
+    assert pairs.pairs[0].user is user_b
+    assert pairs.pairs[0].choice == "Top"
+    assert pairs.pairs[1].user is user_a
+    assert pairs.pairs[1].choice == "Jungle"
 

@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from data_interface import FlowController
 from models.context_model import CommandContext
+from models.model import SelectionMode
 from models.state_model import AmidakujiState
 from services.app_context import create_db_manager
 from utils import (
@@ -217,6 +218,120 @@ async def command_toggle_embed_mode(interaction: discord.Interaction):
         description=f"現在の表示形式: {current_mode}",
         color=discord.Color.green(),
     )
+
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+@tree.command(
+    name=locale_str("amidakuji_selection_mode"),
+    description="抽選のアルゴリズムを切り替えます。",
+)
+@discord.app_commands.describe(mode="抽選モードを選択します。")
+@discord.app_commands.choices(
+    mode=[
+        discord.app_commands.Choice(
+            name="完全ランダム", value=SelectionMode.RANDOM.value
+        ),
+        discord.app_commands.Choice(
+            name="偏り軽減", value=SelectionMode.BIAS_REDUCTION.value
+        ),
+    ]
+)
+async def command_set_selection_mode(
+    interaction: discord.Interaction, mode: discord.app_commands.Choice[str]
+):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+
+    db_manager = getattr(interaction.client, "db", None)
+    if db_manager is None:
+        raise RuntimeError("DB manager is not available")
+
+    try:
+        selection_mode = SelectionMode(mode.value)
+    except ValueError as error:
+        raise RuntimeError("Invalid selection mode") from error
+
+    db_manager.set_selection_mode(selection_mode)
+
+    embed = discord.Embed(
+        title="抽選モードを更新しました",
+        description=f"現在のモード: {mode.name}",
+        color=discord.Color.green(),
+    )
+
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+@tree.command(
+    name=locale_str("amidakuji_history"),
+    description="最近の抽選履歴を表示します。",
+)
+@discord.app_commands.describe(
+    limit="表示件数 (1-10)", template_title="絞り込みたいテンプレート名 (任意)"
+)
+async def command_amidakuji_history(
+    interaction: discord.Interaction,
+    limit: int = 5,
+    template_title: str | None = None,
+):
+    await interaction.response.defer(thinking=True, ephemeral=True)
+
+    db_manager = getattr(interaction.client, "db", None)
+    if db_manager is None:
+        raise RuntimeError("DB manager is not available")
+
+    limit = max(1, min(10, limit))
+
+    guild_id = interaction.guild_id or 0
+    histories = db_manager.get_recent_history(
+        guild_id=guild_id, template_title=template_title, limit=limit
+    )
+
+    if not histories:
+        description = "抽選履歴が見つかりませんでした。"
+        if template_title:
+            description += f" (テンプレート: {template_title})"
+        embed = discord.Embed(
+            title="🎲 最近の抽選履歴",
+            description=description,
+            color=discord.Color.blue(),
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🎲 最近の抽選履歴",
+        description="最新の抽選結果を表示します。",
+        color=discord.Color.blue(),
+        timestamp=datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    for history in histories:
+        try:
+            selection_mode_label = {
+                SelectionMode.RANDOM: "完全ランダム",
+                SelectionMode.BIAS_REDUCTION: "偏り軽減",
+            }[history.selection_mode]
+        except KeyError:
+            selection_mode_label = history.selection_mode.value
+
+        timestamp_text = history.created_at.astimezone(
+            datetime.timezone.utc
+        ).strftime("%Y-%m-%d %H:%M UTC")
+        lines = [
+            f"{entry.user_name} → {entry.choice}" for entry in history.entries
+        ]
+        field_value = "\n".join(lines) if lines else "記録がありません"
+        if len(field_value) > 1024:
+            field_value = field_value[:1010] + "\n..."
+
+        field_name = (
+            f"{history.template_title} ({timestamp_text}) [{selection_mode_label}]"
+        )
+        embed.add_field(name=field_name, value=field_value, inline=False)
+
+    if template_title:
+        embed.set_footer(text=f"テンプレート: {template_title}")
 
     await interaction.followup.send(embed=embed, ephemeral=True)
 
