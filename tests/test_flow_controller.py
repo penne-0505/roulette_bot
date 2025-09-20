@@ -8,6 +8,7 @@ from flow.actions import FlowAction
 from flow.handlers import BaseStateHandler
 from data_interface import FlowController
 from models.context_model import CommandContext
+from models.model import UserInfo
 from models.state_model import AmidakujiState
 
 
@@ -39,7 +40,10 @@ def controller():
     interaction = MagicMock(spec=discord.Interaction)
     interaction.user = MagicMock()
     interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.response.is_done.return_value = False
     interaction.followup = MagicMock()
+    interaction.followup.send = AsyncMock()
 
     context = CommandContext(
         interaction=interaction,
@@ -95,3 +99,44 @@ async def test_dispatch_raises_for_unknown_state(controller):
             context.interaction,
             context.interaction,
         )
+
+
+@pytest.mark.asyncio
+async def test_dispatch_template_deleted_transitions_to_use_existing():
+    interaction = MagicMock(spec=discord.Interaction)
+    interaction.user = MagicMock(id=42)
+    interaction.response = MagicMock()
+    interaction.response.defer = AsyncMock()
+    interaction.response.is_done.return_value = True
+    interaction.followup = MagicMock()
+    interaction.followup.send = AsyncMock()
+
+    context = CommandContext(
+        interaction=interaction,
+        state=AmidakujiState.MODE_DELETE_TEMPLATE,
+    )
+    context.result = interaction
+
+    services = SimpleNamespace(
+        db=MagicMock(
+            delete_custom_template=MagicMock(),
+            get_user=MagicMock(return_value=UserInfo(id=42, name="Tester")),
+        )
+    )
+
+    controller = FlowController(context=context, services=services)
+
+    await controller.dispatch(
+        AmidakujiState.TEMPLATE_DELETED,
+        "Obsolete Template",
+        interaction,
+    )
+
+    services.db.delete_custom_template.assert_called_once_with(
+        user_id=42,
+        template_title="Obsolete Template",
+    )
+    assert context.state is AmidakujiState.MODE_USE_EXISTING
+    followup_calls = interaction.followup.send.call_args_list
+    assert followup_calls, "フォローアップメッセージが送信されていること"
+    assert any("view" in kwargs for _, kwargs in followup_calls)

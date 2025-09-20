@@ -104,3 +104,37 @@ class CreateNewButton(discord.ui.Button):
             interaction,
             interaction,
         )
+
+
+class DeleteTemplateButton(discord.ui.Button):
+    def __init__(self, context: CommandContext, *, disabled: bool = False):
+        super().__init__(
+            style=discord.ButtonStyle.danger,
+            label="テンプレートを削除",
+            disabled=disabled,
+        )
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MODE_DELETE_TEMPLATE,
+            interaction,
+            interaction,
+        )
+
+
+class BackToTemplateSelectButton(discord.ui.Button):
+    def __init__(self, context: CommandContext):
+        super().__init__(
+            style=discord.ButtonStyle.secondary, label="テンプレート一覧に戻る"
+        )
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MODE_USE_EXISTING,
+            interaction,
+            interaction,
+        )
