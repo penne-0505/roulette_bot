@@ -49,15 +49,70 @@ class ApplyOptionsButton(discord.ui.Button):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
+        choices = list(self.context.options_snapshot)
         template = Template(
             title=self.context.history[AmidakujiState.TEMPLATE_TITLE_ENTERED],
-            choices=self.context.history[AmidakujiState.OPTION_NAME_ENTERED],
+            choices=choices,
         )
 
         flow = _get_flow(self.context)
         await flow.dispatch(
             AmidakujiState.TEMPLATE_CREATED,
             template,
+            interaction,
+        )
+
+
+class OptionMoveUpButton(discord.ui.Button):
+    def __init__(self, context: CommandContext, *, row: int | None = None):
+        super().__init__(
+            style=discord.ButtonStyle.secondary,
+            label="上へ",
+            row=row,
+        )
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.OPTION_MOVED_UP,
+            interaction,
+            interaction,
+        )
+
+
+class OptionMoveDownButton(discord.ui.Button):
+    def __init__(self, context: CommandContext, *, row: int | None = None):
+        super().__init__(
+            style=discord.ButtonStyle.secondary,
+            label="下へ",
+            row=row,
+        )
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.OPTION_MOVED_DOWN,
+            interaction,
+            interaction,
+        )
+
+
+class OptionDeleteButton(discord.ui.Button):
+    def __init__(self, context: CommandContext, *, row: int | None = None):
+        super().__init__(
+            style=discord.ButtonStyle.danger,
+            label="削除",
+            row=row,
+        )
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.OPTION_DELETED,
+            interaction,
             interaction,
         )
 

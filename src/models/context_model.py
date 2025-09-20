@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -21,6 +22,8 @@ class CommandContext:
     _history: dict[AmidakujiState, AmidakujiStateTypes.EXPECTED_TYPES] = field(
         default_factory=dict
     )
+    options_snapshot: list[str] = field(default_factory=list)
+    option_edit_index: int | None = None
 
     @property
     def result(self) -> AmidakujiStateTypes.EXPECTED_TYPES:
@@ -61,3 +64,28 @@ class CommandContext:
             self.interaction = interaction
         self.state = state
         self.result = result
+
+    def set_option_snapshot(
+        self,
+        options: Sequence[str],
+        *,
+        select_last: bool = False,
+        preferred_index: int | None = None,
+    ) -> None:
+        normalized = list(options)
+        self.options_snapshot = normalized
+        self._history[AmidakujiState.OPTION_NAME_ENTERED] = list(normalized)
+
+        if not normalized:
+            self.option_edit_index = None
+            return
+
+        if preferred_index is not None:
+            target_index = preferred_index
+        elif select_last or self.option_edit_index is None:
+            target_index = len(normalized) - 1
+        else:
+            target_index = self.option_edit_index
+
+        target_index = max(0, min(target_index, len(normalized) - 1))
+        self.option_edit_index = target_index

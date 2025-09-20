@@ -68,5 +68,27 @@ class ResultEmbedMode(Enum):
     DETAILED = "detailed"
 
 
+class SelectionMode(Enum):
+    RANDOM = "random"
+    BIAS_REDUCTION = "bias_reduction"
+
+
+@dataclass
+class AssignmentEntry:
+    user_id: int
+    user_name: str
+    choice: str
+
+
+@dataclass
+class AssignmentHistory:
+    guild_id: int
+    template_title: str
+    created_at: datetime
+    entries: list[AssignmentEntry]
+    choices: list[str] = field(default_factory=list)
+    selection_mode: SelectionMode = SelectionMode.RANDOM
+
+
 if __name__ == "__main__":
     pass

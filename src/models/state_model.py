@@ -20,6 +20,10 @@ class AmidakujiState(Enum):
     TEMPLATE_TITLE_ENTERED = auto()  # テンプレートのタイトルが入力された時
     ENTER_OPTION_BUTTON_CLICKED = auto()  # オプション入力ボタンが押された時(モーダルからモーダルは、ボタンを押すことで遷移する)
     OPTION_NAME_ENTERED = auto()  # オプションの名前が入力された時
+    OPTION_MANAGE_SELECTED = auto()  # オプション管理ビューで選択が変更された時
+    OPTION_DELETED = auto()  # オプションが削除された時
+    OPTION_MOVED_UP = auto()  # オプションが上に移動された時
+    OPTION_MOVED_DOWN = auto()  # オプションが下に移動された時
     NEED_MORE_OPTIONS = auto()  # さらにオプションを入力する必要がある時
     TEMPLATE_CREATED = auto()  # テンプレートが作成された時(dbに別途保存する必要がある)
 

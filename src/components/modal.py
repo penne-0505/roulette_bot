@@ -49,7 +49,7 @@ class OptionNameEnterModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         if self.context.state == AmidakujiState.NEED_MORE_OPTIONS:
-            result = self.context.history[AmidakujiState.OPTION_NAME_ENTERED]
+            result = list(self.context.options_snapshot)
             result.append(self.option_name_input.value)
         else:
             result = [self.option_name_input.value]

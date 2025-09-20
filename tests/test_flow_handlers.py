@@ -1,12 +1,18 @@
-import pytest
+import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import discord
+import pytest
 
 import data_process
-from flow.actions import DeferResponseAction, SendMessageAction, SendViewAction
+from flow.actions import DeferResponseAction, EditMessageAction, SendMessageAction, SendViewAction
 from flow.handlers import (
+    OptionDeletedHandler,
+    OptionMovedDownHandler,
+    OptionMovedUpHandler,
+    OptionNameEnteredHandler,
+    OptionSelectionChangedHandler,
     DeleteTemplateModeHandler,
     MemberSelectedHandler,
     SharedTemplateCopyHandler,
@@ -20,7 +26,6 @@ from flow.handlers import (
     UseSharedTemplatesHandler,
 )
 from models.context_model import CommandContext
-from models.model import Template, TemplateScope, UserInfo
 from models.state_model import AmidakujiState
 from views.view import (
     DeleteTemplateView,
@@ -29,8 +34,18 @@ from views.view import (
     SelectTemplateView,
     SharedTemplateActionView,
     SharedTemplateSelectView,
+    ApplyOptionsView,
 )
-
+from models.model import (
+    AssignmentEntry,
+    AssignmentHistory,
+    Pair,
+    PairList,
+    SelectionMode,
+    Template,
+    UserInfo,
+    TemplateScope
+)
 
 @pytest.fixture
 def base_interaction():
@@ -39,7 +54,8 @@ def base_interaction():
     interaction.response = MagicMock()
     interaction.response.is_done.return_value = False
     interaction.followup = MagicMock()
-    interaction.guild_id = 987654321
+    interaction.guild = None
+    interaction.guild_id = 999
     return interaction
 
 
@@ -132,10 +148,106 @@ async def test_use_public_templates_handler_returns_select_view(base_interaction
     assert isinstance(action, SendViewAction)
     assert isinstance(action.view, PublicTemplateSelectView)
 
+async def test_option_name_entered_handler_updates_snapshot(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_NAME_ENTERED,
+    )
+    context.result = ["Alpha", "Beta"]
+
+    handler = OptionNameEnteredHandler()
+    action = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(action, SendMessageAction)
+    assert action.embed is not None
+    assert "2. **Beta**" in action.embed.description
+    assert isinstance(action.view, ApplyOptionsView)
+    assert context.options_snapshot == ["Alpha", "Beta"]
+    assert context.option_edit_index == 1
+
+
+@pytest.mark.asyncio
+async def test_option_selection_changed_handler_updates_index(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_MANAGE_SELECTED,
+    )
+    context.result = 1
+    context.set_option_snapshot(["Alpha", "Beta"], preferred_index=0)
+
+    handler = OptionSelectionChangedHandler()
+    action = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(action, EditMessageAction)
+    assert isinstance(action.view, ApplyOptionsView)
+    assert context.option_edit_index == 1
+    assert action.embed is not None
+    assert "2. **Beta**" in action.embed.description
+
+
+@pytest.mark.asyncio
+async def test_option_deleted_handler_removes_option(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_DELETED,
+    )
+    context.result = base_interaction
+    context.set_option_snapshot(["Alpha", "Beta", "Gamma"], preferred_index=1)
+
+    handler = OptionDeletedHandler()
+    actions = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], EditMessageAction)
+    assert isinstance(actions[1], SendMessageAction)
+    assert "Beta" in (actions[1].content or "")
+    assert context.options_snapshot == ["Alpha", "Gamma"]
+    assert context.option_edit_index == 1
+
+
+@pytest.mark.asyncio
+async def test_option_moved_up_handler_swaps_options(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_MOVED_UP,
+    )
+    context.result = base_interaction
+    context.set_option_snapshot(["Alpha", "Beta", "Gamma"], preferred_index=1)
+
+    handler = OptionMovedUpHandler()
+    actions = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], EditMessageAction)
+    assert context.options_snapshot == ["Beta", "Alpha", "Gamma"]
+    assert context.option_edit_index == 0
+    assert isinstance(actions[1], SendMessageAction)
+    assert "Beta" in (actions[1].content or "")
+
+
+@pytest.mark.asyncio
+async def test_option_moved_down_handler_swaps_options(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_MOVED_DOWN,
+    )
+    context.result = base_interaction
+    context.set_option_snapshot(["Alpha", "Beta", "Gamma"], preferred_index=1)
+
+    handler = OptionMovedDownHandler()
+    actions = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], EditMessageAction)
+    assert context.options_snapshot == ["Alpha", "Gamma", "Beta"]
+    assert context.option_edit_index == 2
+    assert isinstance(actions[1], SendMessageAction)
+    assert "Beta" in (actions[1].content or ""
+
 
 @pytest.mark.asyncio
 async def test_template_created_handler_updates_context_and_saves_template(base_interaction):
-    template = Template(title="Valorant", choices=["Duelist"])
+    template = Template(title="Valorant", choices=["Duelist", "Initiator"])
     context = CommandContext(
         interaction=base_interaction,
         state=AmidakujiState.TEMPLATE_CREATED,
@@ -155,6 +267,26 @@ async def test_template_created_handler_updates_context_and_saves_template(base_
     )
     assert context.state is AmidakujiState.TEMPLATE_DETERMINED
     assert context.result is template
+
+
+@pytest.mark.asyncio
+async def test_template_created_handler_rejects_single_option(base_interaction):
+    template = Template(title="Solo", choices=["Only"])
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.TEMPLATE_CREATED,
+    )
+    context.result = template
+
+    services = SimpleNamespace(db=MagicMock())
+
+    handler = TemplateCreatedHandler()
+    action = await handler.handle(context, services)
+
+    assert isinstance(action, SendMessageAction)
+    assert action.embed is not None
+    assert "2件以上" in action.embed.description
+    services.db.add_custom_template.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -352,9 +484,11 @@ async def test_member_selected_handler_builds_embeds(monkeypatch, base_interacti
 
     pair_list = MagicMock()
 
-    def fake_create_pair_from_list(users, choices):
+    def fake_create_pair_from_list(users, choices, *, selection_mode, weights):
         assert users == selected_members
         assert choices == template.choices
+        assert selection_mode is SelectionMode.RANDOM
+        assert weights is None
         return pair_list
 
     embeds = [discord.Embed(title="Result")]
@@ -369,11 +503,80 @@ async def test_member_selected_handler_builds_embeds(monkeypatch, base_interacti
 
     services = SimpleNamespace(db=MagicMock())
     services.db.get_embed_mode.return_value = "compact"
+    services.db.get_selection_mode.return_value = SelectionMode.RANDOM.value
+    services.db.get_recent_history.return_value = []
 
     handler = MemberSelectedHandler()
     action = await handler.handle(context, services)
 
     services.db.get_embed_mode.assert_called_once()
+    services.db.get_selection_mode.assert_called_once()
+    services.db.get_recent_history.assert_called_once()
+    services.db.save_history.assert_called_once()
     assert isinstance(action, SendMessageAction)
     assert action.embeds is embeds
     assert action.ephemeral is False
+
+
+@pytest.mark.asyncio
+async def test_member_selected_handler_detects_bias(monkeypatch, base_interaction):
+    user = MagicMock(spec=discord.User)
+    user.id = 123
+    user.display_name = "Tester"
+
+    selected_members = [user]
+    template = Template(title="League", choices=["Top"])
+
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.MEMBER_SELECTED,
+    )
+    context.result = selected_members
+    context.history[AmidakujiState.TEMPLATE_DETERMINED] = template
+
+    pair_list = PairList(pairs=[Pair(user=user, choice="Top")])
+
+    def fake_create_pair_from_list(*args, **kwargs):
+        assert kwargs["selection_mode"] is SelectionMode.BIAS_REDUCTION
+        weights = kwargs["weights"]
+        assert weights is not None
+        assert weights[user.id]["Top"] < 1.0
+        return pair_list
+
+    embeds = [discord.Embed(title="Result")]
+
+    def fake_create_embeds_from_pairs(*, pairs, mode):
+        assert pairs is pair_list
+        return embeds
+
+    monkeypatch.setattr(data_process, "create_pair_from_list", fake_create_pair_from_list)
+    monkeypatch.setattr(data_process, "create_embeds_from_pairs", fake_create_embeds_from_pairs)
+
+    base_time = datetime.datetime.now(datetime.timezone.utc)
+    histories = [
+        AssignmentHistory(
+            guild_id=base_interaction.guild_id or 0,
+            template_title=template.title,
+            created_at=base_time - datetime.timedelta(minutes=idx + 1),
+            entries=[AssignmentEntry(user_id=user.id, user_name="Tester", choice="Top")],
+            selection_mode=SelectionMode.RANDOM,
+        )
+        for idx in range(3)
+    ]
+
+    services = SimpleNamespace(db=MagicMock())
+    services.db.get_embed_mode.return_value = "compact"
+    services.db.get_selection_mode.return_value = SelectionMode.BIAS_REDUCTION.value
+    services.db.get_recent_history.return_value = histories
+
+    handler = MemberSelectedHandler()
+    actions = await handler.handle(context, services)
+
+    assert isinstance(actions, list)
+    assert len(actions) == 2
+    assert isinstance(actions[0], SendMessageAction)
+    warning_action = actions[1]
+    assert isinstance(warning_action, SendMessageAction)
+    assert warning_action.ephemeral is True
+    assert warning_action.embed is not None
+    assert "偏り" in warning_action.embed.title

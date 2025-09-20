@@ -134,6 +134,50 @@ class TemplateDeleteSelect(discord.ui.Select):
         )
 
 
+class OptionManageSelect(discord.ui.Select):
+    def __init__(
+        self,
+        context: CommandContext,
+        options: list[str],
+        *,
+        selected_index: int | None = None,
+    ):
+        if not options:
+            raise ValueError("Options must not be empty")
+
+        select_options: list[discord.SelectOption] = []
+        for index, name in enumerate(options):
+            select_options.append(
+                discord.SelectOption(
+                    label=f"{index + 1}. {name}",
+                    value=str(index),
+                    default=index == selected_index,
+                )
+            )
+
+        super().__init__(
+            placeholder="編集するオプションを選択してください",
+            options=select_options,
+            min_values=1,
+            max_values=1,
+        )
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_value = self.values[0]
+        try:
+            index = int(selected_value)
+        except ValueError as exc:  # pragma: no cover - defensive coding
+            raise ValueError("Invalid option index") from exc
+
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.OPTION_MANAGE_SELECTED,
+            index,
+            interaction,
+        )
+
+
 T = TypeVar("T")
 
 

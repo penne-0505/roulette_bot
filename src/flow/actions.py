@@ -73,6 +73,7 @@ class SendMessageAction(_BaseAction):
     embeds: Sequence[discord.Embed] | None = None
     ephemeral: bool = True
     followup: bool | None = None
+    view: discord.ui.View | None = None
 
     async def execute(self, context: CommandContext) -> None:
         interaction = self._resolve_interaction(context)
@@ -85,6 +86,8 @@ class SendMessageAction(_BaseAction):
             payload["embed"] = self.embed
         if self.embeds is not None:
             payload["embeds"] = list(self.embeds)
+        if self.view is not None:
+            payload["view"] = self.view
 
         if use_followup:
             await interaction.followup.send(ephemeral=self.ephemeral, **payload)
@@ -102,3 +105,28 @@ class DeferResponseAction(_BaseAction):
         interaction = self._resolve_interaction(context)
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=self.ephemeral)
+
+
+@dataclass(slots=True)
+class EditMessageAction(_BaseAction):
+    """Edit the original interaction message with updated content."""
+
+    content: str | None = None
+    embed: discord.Embed | None = None
+    embeds: Sequence[discord.Embed] | None = None
+    view: discord.ui.View | None = None
+
+    async def execute(self, context: CommandContext) -> None:
+        interaction = self._resolve_interaction(context)
+        payload: dict[str, object | None] = {"content": self.content}
+        if self.embed is not None:
+            payload["embed"] = self.embed
+        if self.embeds is not None:
+            payload["embeds"] = list(self.embeds)
+        if self.view is not None:
+            payload["view"] = self.view
+
+        if interaction.response.is_done():
+            await interaction.edit_original_response(**payload)
+        else:
+            await interaction.response.edit_message(**payload)
