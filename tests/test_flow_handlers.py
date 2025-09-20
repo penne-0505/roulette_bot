@@ -7,8 +7,10 @@ import discord
 import data_process
 from flow.actions import DeferResponseAction, SendMessageAction, SendViewAction
 from flow.handlers import (
+    DeleteTemplateModeHandler,
     MemberSelectedHandler,
     TemplateCreatedHandler,
+    TemplateDeletedHandler,
     TemplateDeterminedHandler,
     UseExistingHandler,
     UseHistoryHandler,
@@ -16,7 +18,7 @@ from flow.handlers import (
 from models.context_model import CommandContext
 from models.model import Template, UserInfo
 from models.state_model import AmidakujiState
-from views.view import MemberSelectView, SelectTemplateView
+from views.view import DeleteTemplateView, MemberSelectView, SelectTemplateView
 
 
 @pytest.fixture
@@ -47,7 +49,7 @@ async def test_use_existing_handler_returns_select_view(base_interaction):
 
     assert isinstance(action, SendViewAction)
     assert isinstance(action.view, SelectTemplateView)
-    assert len(action.view.children) == 1
+    assert len(action.view.children) == 2
 
 
 @pytest.mark.asyncio
@@ -72,6 +74,71 @@ async def test_template_created_handler_updates_context_and_saves_template(base_
     )
     assert context.state is AmidakujiState.TEMPLATE_DETERMINED
     assert context.result is template
+
+
+@pytest.mark.asyncio
+async def test_delete_template_mode_handler_returns_delete_view(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.MODE_DELETE_TEMPLATE,
+    )
+    context.result = base_interaction
+
+    template = Template(title="League", choices=["Top"])
+    user = UserInfo(id=42, name="Tester", custom_templates=[template])
+
+    services = SimpleNamespace(db=MagicMock())
+    services.db.get_user.return_value = user
+
+    handler = DeleteTemplateModeHandler()
+    action = await handler.handle(context, services)
+
+    assert isinstance(action, SendViewAction)
+    assert isinstance(action.view, DeleteTemplateView)
+
+
+@pytest.mark.asyncio
+async def test_delete_template_mode_handler_returns_error_when_no_templates(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.MODE_DELETE_TEMPLATE,
+    )
+    context.result = base_interaction
+
+    user = UserInfo(id=42, name="Tester", custom_templates=[])
+
+    services = SimpleNamespace(db=MagicMock())
+    services.db.get_user.return_value = user
+
+    handler = DeleteTemplateModeHandler()
+    action = await handler.handle(context, services)
+
+    assert isinstance(action, SendMessageAction)
+    assert action.embed is not None
+    assert "削除できるテンプレート" in action.embed.description
+
+
+@pytest.mark.asyncio
+async def test_template_deleted_handler_deletes_template(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.TEMPLATE_DELETED,
+    )
+    context.result = "League"
+
+    services = SimpleNamespace(db=MagicMock())
+
+    handler = TemplateDeletedHandler()
+    actions = await handler.handle(context, services)
+
+    services.db.delete_custom_template.assert_called_once_with(
+        user_id=42, template_title="League"
+    )
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], DeferResponseAction)
+    assert isinstance(actions[1], SendMessageAction)
+    assert context.state is AmidakujiState.MODE_USE_EXISTING
+    assert context.result is base_interaction
 
 
 @pytest.mark.asyncio

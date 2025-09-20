@@ -64,6 +64,27 @@ class TemplateSelect(discord.ui.Select):
         )
 
 
+class TemplateDeleteSelect(discord.ui.Select):
+    def __init__(self, context: CommandContext, templates: list[Template]):
+        if not templates:
+            raise ValueError("Templates must not be empty")
+
+        super().__init__(
+            placeholder="削除するテンプレートを選択してください",
+            options=[discord.SelectOption(label=template.title) for template in templates],
+        )
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_template_title = self.values[0]
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.TEMPLATE_DELETED,
+            selected_template_title,
+            interaction,
+        )
+
+
 T = TypeVar("T")
 
 

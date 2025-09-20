@@ -20,6 +20,7 @@ from models.model import Template
 from models.state_model import AmidakujiState
 from views.view import (
     ApplyOptionsView,
+    DeleteTemplateView,
     EnterOptionView,
     MemberSelectView,
     SelectTemplateView,
@@ -64,6 +65,27 @@ class UseExistingHandler(BaseStateHandler):
         templates = user_data.custom_templates if user_data else []
 
         view = SelectTemplateView(context=context, templates=templates)
+        return SendViewAction(view=view)
+
+
+class DeleteTemplateModeHandler(BaseStateHandler):
+    async def handle(
+        self, context: CommandContext, services: Any
+    ) -> FlowAction | Sequence[FlowAction]:
+        target_user = context.interaction.user
+        db_manager = resolve_db_manager(context, services)
+        user_data = db_manager.get_user(target_user.id)
+        templates = user_data.custom_templates if user_data else []
+
+        if not templates:
+            embed = discord.Embed(
+                title="エラーが発生しました🥲",
+                description="削除できるテンプレートが見つかりませんでした。",
+                color=discord.Color.red(),
+            )
+            return SendMessageAction(embed=embed, ephemeral=True)
+
+        view = DeleteTemplateView(context=context, templates=templates)
         return SendViewAction(view=view)
 
 
@@ -129,6 +151,39 @@ class TemplateCreatedHandler(BaseStateHandler):
             state=AmidakujiState.TEMPLATE_DETERMINED,
             result=template,
             interaction=context.interaction,
+        )
+
+        return [
+            DeferResponseAction(ephemeral=True),
+            SendMessageAction(embed=embed, ephemeral=True, followup=True),
+        ]
+
+
+class TemplateDeletedHandler(BaseStateHandler):
+    async def handle(
+        self, context: CommandContext, services: Any
+    ) -> FlowAction | Sequence[FlowAction]:
+        template_title = context.result
+        if not isinstance(template_title, str):
+            raise ValueError("Template title must be a string")
+
+        user_id = context.interaction.user.id
+        db_manager = resolve_db_manager(context, services)
+        db_manager.delete_custom_template(
+            user_id=user_id, template_title=template_title
+        )
+
+        embed = discord.Embed(
+            title="🗑️テンプレートを削除しました",
+            description=f"タイトル: **{template_title}**",
+            color=discord.Color.orange(),
+        )
+
+        current_interaction = context.interaction
+        context.update_context(
+            state=AmidakujiState.MODE_USE_EXISTING,
+            result=current_interaction,
+            interaction=current_interaction,
         )
 
         return [

@@ -2,13 +2,15 @@ import discord
 
 from components.button import (
     ApplyOptionsButton,
+    BackToTemplateSelectButton,
     CreateNewButton,
+    DeleteTemplateButton,
     EnterOptionButton,
     NeedMoreOptionsButton,
     UseExistingButton,
     UseHistoryButton,
 )
-from components.select import MemberSelect, TemplateSelect
+from components.select import MemberSelect, TemplateDeleteSelect, TemplateSelect
 from models.context_model import CommandContext
 from models.model import Template
 
@@ -23,6 +25,14 @@ class SelectTemplateView(discord.ui.View):
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(timeout=300)
         self.add_item(TemplateSelect(context, templates))
+        self.add_item(DeleteTemplateButton(context, disabled=not templates))
+
+
+class DeleteTemplateView(discord.ui.View):
+    def __init__(self, context: CommandContext, templates: list[Template]):
+        super().__init__(timeout=300)
+        self.add_item(TemplateDeleteSelect(context, templates))
+        self.add_item(BackToTemplateSelectButton(context))
 
 
 class EnterOptionView(discord.ui.View):

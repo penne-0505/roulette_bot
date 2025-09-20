@@ -22,6 +22,7 @@ class AmidakujiStateTypes(Enum):
     MODE_USE_EXISTING: TypeAlias = discord.Interaction
     MODE_CREATE_NEW: TypeAlias = discord.Interaction
     MODE_USE_HISTORY: TypeAlias = discord.Interaction
+    MODE_DELETE_TEMPLATE: TypeAlias = discord.Interaction
 
     TEMPLATE_TITLE_ENTERED: TypeAlias = str
     TEMPLATE_CREATED: TypeAlias = Template
@@ -30,6 +31,8 @@ class AmidakujiStateTypes(Enum):
     NEED_MORE_OPTIONS: TypeAlias = discord.Interaction
 
     TEMPLATE_DETERMINED: TypeAlias = Template
+
+    TEMPLATE_DELETED: TypeAlias = str
 
     MEMBER_SELECTED: TypeAlias = List[discord.User]
 
@@ -45,12 +48,14 @@ class TypeRegistry:
         AmidakujiState.MODE_USE_EXISTING: discord.Interaction,
         AmidakujiState.MODE_CREATE_NEW: discord.Interaction,
         AmidakujiState.MODE_USE_HISTORY: discord.Interaction,
+        AmidakujiState.MODE_DELETE_TEMPLATE: discord.Interaction,
         AmidakujiState.TEMPLATE_TITLE_ENTERED: str,
         AmidakujiState.TEMPLATE_CREATED: Template,
         AmidakujiState.OPTION_NAME_ENTERED: list[str],
         AmidakujiState.ENTER_OPTION_BUTTON_CLICKED: discord.Interaction,
         AmidakujiState.NEED_MORE_OPTIONS: discord.Interaction,
         AmidakujiState.TEMPLATE_DETERMINED: Template,
+        AmidakujiState.TEMPLATE_DELETED: str,
         AmidakujiState.MEMBER_SELECTED: list[discord.User],
         AmidakujiState.CANCELLED: discord.Interaction,
     }
