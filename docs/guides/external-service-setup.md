@@ -15,7 +15,7 @@
 - Server Members Intent
 - Message Content Intent
 
-> Bot タブの「Privileged Gateway Intents」セクションで各スイッチをオンにします。`discord.Intents.all()` を有効にして Bot を初期化している実装はコードに記載されています。【F:src/main.py†L33-L48】
+> Bot タブの「Privileged Gateway Intents」セクションで各スイッチをオンにします。`discord.Intents.all()` を有効にして Bot を初期化している実装はコードに記載されています。【src/main.py†L33-L48】
 
 ### 3. Bot トークンの取得と管理
 1. Bot タブの「Reset Token」を押して Bot トークンを発行します。
@@ -27,7 +27,7 @@
 1. Developer Portal の **OAuth2 > URL Generator** を開きます。
 2. Scopes で `bot` と `applications.commands` を選択し、Bot Permissions で必要な権限（少なくとも Send Messages, Embed Links, Read Message History など）を付与します。
 3. 生成された URL から Bot をサーバーに招待します。
-4. 招待後、Bot がオンラインになっていること、スラッシュコマンドが自動的に同期されていることを確認してください（アプリケーションは起動時に `tree.sync()` を実行してコマンドを同期します）。【F:src/main.py†L62-L67】
+4. 招待後、Bot がオンラインになっていること、スラッシュコマンドが自動的に同期されていることを確認してください（アプリケーションは起動時に `tree.sync()` を実行してコマンドを同期します）。【src/main.py†L62-L67】
 
 ## Firebase / Firestore 側の準備
 ### 1. Firebase プロジェクトの作成
@@ -45,16 +45,16 @@
 3. ダウンロードした JSON ファイルは安全なストレージに保管し、アプリケーションサーバーへ安全に配布できるようにします。
 
 ### 4. 認証情報の提供方法
-アプリケーションは環境変数 `FIREBASE_CREDENTIALS` で指定された場所から認証情報を読み込みます。【F:src/services/app_context.py†L13-L37】
+アプリケーションは環境変数 `FIREBASE_CREDENTIALS` で指定された場所から認証情報を読み込みます。【src/services/app_context.py†L13-L37】
 
 - `FIREBASE_CREDENTIALS` に **JSON ファイルのパス**（例: `/run/secrets/firebase.json` や `config/firebase.json`）を設定すると、そのファイルを直接読み込みます。
 - もし環境によって直接ファイルを配置できない場合は、HTTPS でアクセスできる URL を `FIREBASE_CREDENTIALS` に指定できます。アプリケーションはその URL に GET リクエストを送り、レスポンスの JSON を資格情報として使用します。
 - 認証情報が取得できない場合、アプリケーションは起動時に例外を発生させます。【F:src/services/app_context.py†L13-L37】
 
 ### 5. Firestore データ構造の確認
-アプリケーションは Firestore 内で以下のコレクションを使用します。【F:src/db_manager.py†L35-L189】
+アプリケーションは Firestore 内で以下のコレクションを使用します。【src/db_manager.py†L35-L189】
 - `users`: コマンドを実行した Discord ユーザーを記録します。
-- `info`: 初期テンプレートや表示設定（例: `default_templates`, `embed_mode`）を保存します。Bot 起動時に `_init_default_templates()` が呼ばれ、パブリックテンプレートが自動的に書き込まれます。【F:src/main.py†L48-L55】【F:src/db_manager.py†L300-L342】
+- `info`: 初期テンプレートや表示設定（例: `default_templates`, `embed_mode`）を保存します。Bot 起動時に `_init_default_templates()` が呼ばれ、パブリックテンプレートが自動的に書き込まれます。【src/main.py†L48-L55】【src/db_manager.py†L300-L342】
 - `shared_templates`: 共有テンプレートの保存に使用します。
 - `history`: 抽選結果の履歴を保存します。
 
@@ -67,10 +67,10 @@ Firestore のセキュリティルールでは、上記コレクションへの�
   CLIENT_TOKEN=discord_bot_token
   FIREBASE_CREDENTIALS=/absolute/path/to/firebase-service-account.json
   ```
-- `.env` ファイルはバージョン管理対象から除外し、共有ストレージに保存しないでください。アプリケーションは `.env` が存在しない場合に警告を出しながらも OS 環境変数にフォールバックします。【F:src/main.py†L339-L359】
+- `.env` ファイルはバージョン管理対象から除外し、共有ストレージに保存しないでください。アプリケーションは `.env` が存在しない場合に警告を出しながらも OS 環境変数にフォールバックします。【src/main.py†L339-L359】
 
 ### コンテナ / 本番環境での設定
-- Docker を利用する場合、`docker run` あるいは `docker-compose` の環境変数として `CLIENT_TOKEN` と `FIREBASE_CREDENTIALS` を渡してください。README でも同じ環境変数が必要であると案内されています。【F:README.md†L5-L26】
+- Docker を利用する場合、`docker run` あるいは `docker-compose` の環境変数として `CLIENT_TOKEN` と `FIREBASE_CREDENTIALS` を渡してください。README でも同じ環境変数が必要であると案内されています。【README.md†L5-L26】
 - 運用環境では、インフラ側のシークレット管理機能（Docker Secrets、Kubernetes Secret、CI/CD の暗号化シークレットなど）を使用し、トークンやサービスアカウントキーを平文で保存しない運用ルールを確立してください。
 
 ## チェックリスト
