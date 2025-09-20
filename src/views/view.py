@@ -75,9 +75,6 @@ class ApplyOptionsView(discord.ui.View):
             move_up.disabled = selected_index <= 0
             move_down.disabled = selected_index >= len(options) - 1
 
-        if not options or len(options) < 2:
-            move_up.disabled = True
-            move_down.disabled = True
 
         self.add_item(move_up)
         self.add_item(move_down)
