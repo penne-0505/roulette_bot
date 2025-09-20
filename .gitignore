@@ -4,6 +4,7 @@ cred/
 .venv/
 .idx/
 __pycache__/
+poetry.lock
 .dev.md
 .learned.md
 .clinerules
