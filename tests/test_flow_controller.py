@@ -139,4 +139,4 @@ async def test_dispatch_template_deleted_transitions_to_use_existing():
     assert context.state is AmidakujiState.MODE_USE_EXISTING
     followup_calls = interaction.followup.send.call_args_list
     assert followup_calls, "フォローアップメッセージが送信されていること"
-    assert any("view" in kwargs for _, kwargs in followup_calls)
+    assert any("embed" in kwargs or "embeds" in kwargs for _, kwargs in followup_calls)

@@ -23,6 +23,8 @@ class AmidakujiStateTypes(Enum):
     MODE_CREATE_NEW: TypeAlias = discord.Interaction
     MODE_USE_HISTORY: TypeAlias = discord.Interaction
     MODE_DELETE_TEMPLATE: TypeAlias = discord.Interaction
+    MODE_USE_SHARED: TypeAlias = discord.Interaction
+    MODE_USE_PUBLIC: TypeAlias = discord.Interaction
 
     TEMPLATE_TITLE_ENTERED: TypeAlias = str
     TEMPLATE_CREATED: TypeAlias = Template
@@ -37,6 +39,8 @@ class AmidakujiStateTypes(Enum):
     TEMPLATE_DETERMINED: TypeAlias = Template
 
     TEMPLATE_DELETED: TypeAlias = str
+    SHARED_TEMPLATE_SELECTED: TypeAlias = Template
+    SHARED_TEMPLATE_COPY_REQUESTED: TypeAlias = Template
 
     MEMBER_SELECTED: TypeAlias = List[discord.User]
 
@@ -53,6 +57,8 @@ class TypeRegistry:
         AmidakujiState.MODE_CREATE_NEW: discord.Interaction,
         AmidakujiState.MODE_USE_HISTORY: discord.Interaction,
         AmidakujiState.MODE_DELETE_TEMPLATE: discord.Interaction,
+        AmidakujiState.MODE_USE_SHARED: discord.Interaction,
+        AmidakujiState.MODE_USE_PUBLIC: discord.Interaction,
         AmidakujiState.TEMPLATE_TITLE_ENTERED: str,
         AmidakujiState.TEMPLATE_CREATED: Template,
         AmidakujiState.OPTION_NAME_ENTERED: list[str],
@@ -64,6 +70,8 @@ class TypeRegistry:
         AmidakujiState.NEED_MORE_OPTIONS: discord.Interaction,
         AmidakujiState.TEMPLATE_DETERMINED: Template,
         AmidakujiState.TEMPLATE_DELETED: str,
+        AmidakujiState.SHARED_TEMPLATE_SELECTED: Template,
+        AmidakujiState.SHARED_TEMPLATE_COPY_REQUESTED: Template,
         AmidakujiState.MEMBER_SELECTED: list[discord.User],
         AmidakujiState.CANCELLED: discord.Interaction,
     }

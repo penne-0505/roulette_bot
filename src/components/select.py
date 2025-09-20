@@ -33,33 +33,82 @@ def _get_db_manager(context: CommandContext, interaction: discord.Interaction) -
     return db_manager
 
 
-class TemplateSelect(discord.ui.Select):
+class _TemplateSelectBase(discord.ui.Select):
+    def __init__(
+        self,
+        context: CommandContext,
+        templates: list[Template],
+        *,
+        placeholder: str,
+    ) -> None:
+        options = [
+            discord.SelectOption(label=template.title, value=str(index))
+            for index, template in enumerate(templates)
+        ]
+        super().__init__(placeholder=placeholder, options=options)
+        self.context = context
+        self._template_map: dict[str, Template] = {
+            option.value: template for option, template in zip(self.options, templates)
+        }
+
+    def _resolve_template(self) -> Template:
+        selected_value = self.values[0]
+        template = self._template_map.get(selected_value)
+        if template is None:
+            raise ValueError("Template is not selected")
+        return template
+
+
+class TemplateSelect(_TemplateSelectBase):
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(
+            context,
+            templates,
             placeholder="テンプレートを選択してください",
-            options=[
-                discord.SelectOption(label=template.title) for template in templates
-            ],
         )
-        self.context = context
 
     async def callback(self, interaction: discord.Interaction):
-        selected_template_title = self.values[0]
-        db_manager = _get_db_manager(self.context, interaction)
-        current_user = db_manager.get_user(interaction.user.id)
-        user_templates = current_user.custom_templates if current_user else []
-        selected_template = next(
-            (t for t in user_templates if t.title == selected_template_title),
-            None,
-        )
-
-        if selected_template is None:
-            raise ValueError("Template is not selected")
-
+        selected_template = self._resolve_template()
         flow = _get_flow(self.context)
         await flow.dispatch(
             AmidakujiState.TEMPLATE_DETERMINED,
             selected_template,
+            interaction,
+        )
+
+
+class SharedTemplateSelect(_TemplateSelectBase):
+    def __init__(self, context: CommandContext, templates: list[Template]):
+        super().__init__(
+            context,
+            templates,
+            placeholder="共有テンプレートを選択してください",
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        template = self._resolve_template()
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.SHARED_TEMPLATE_SELECTED,
+            template,
+            interaction,
+        )
+
+
+class PublicTemplateSelect(_TemplateSelectBase):
+    def __init__(self, context: CommandContext, templates: list[Template]):
+        super().__init__(
+            context,
+            templates,
+            placeholder="公開テンプレートを選択してください",
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        template = self._resolve_template()
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.SHARED_TEMPLATE_SELECTED,
+            template,
             interaction,
         )
 

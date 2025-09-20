@@ -17,14 +17,18 @@ from flow.actions import (
     ShowModalAction,
 )
 from models.context_model import CommandContext
-from models.model import AssignmentHistory, PairList, SelectionMode, Template
+from models.model import Template, TemplateScope
+from models.model import AssignmentHistory, PairList, SelectionMode, Template, TemplateScope
 from models.state_model import AmidakujiState
 from views.view import (
     ApplyOptionsView,
     DeleteTemplateView,
     EnterOptionView,
     MemberSelectView,
+    PublicTemplateSelectView,
     SelectTemplateView,
+    SharedTemplateActionView,
+    SharedTemplateSelectView,
 )
 from components.modal import OptionNameEnterModal, TitleEnterModal
 from discord.utils import escape_markdown
@@ -84,8 +88,21 @@ class UseExistingHandler(BaseStateHandler):
     ) -> FlowAction | Sequence[FlowAction]:
         target_user = context.interaction.user
         db_manager = resolve_db_manager(context, services)
-        user_data = db_manager.get_user(target_user.id)
-        templates = user_data.custom_templates if user_data else []
+        guild_id = getattr(context.interaction, "guild_id", None)
+        user_data = db_manager.get_user(target_user.id, guild_id=guild_id)
+        templates = [
+            template
+            for template in (user_data.custom_templates if user_data else [])
+            if template.scope is TemplateScope.PRIVATE
+        ]
+
+        if not templates:
+            embed = discord.Embed(
+                title="テンプレートが見つかりません",
+                description="まずはテンプレートを作成するか、共有テンプレートを利用してください。",
+                color=discord.Color.orange(),
+            )
+            return SendMessageAction(embed=embed, ephemeral=True)
 
         view = SelectTemplateView(context=context, templates=templates)
         return SendViewAction(view=view)
@@ -97,8 +114,13 @@ class DeleteTemplateModeHandler(BaseStateHandler):
     ) -> FlowAction | Sequence[FlowAction]:
         target_user = context.interaction.user
         db_manager = resolve_db_manager(context, services)
-        user_data = db_manager.get_user(target_user.id)
-        templates = user_data.custom_templates if user_data else []
+        guild_id = getattr(context.interaction, "guild_id", None)
+        user_data = db_manager.get_user(target_user.id, guild_id=guild_id)
+        templates = [
+            template
+            for template in (user_data.custom_templates if user_data else [])
+            if template.scope is TemplateScope.PRIVATE
+        ]
 
         if not templates:
             embed = discord.Embed(
@@ -109,6 +131,58 @@ class DeleteTemplateModeHandler(BaseStateHandler):
             return SendMessageAction(embed=embed, ephemeral=True)
 
         view = DeleteTemplateView(context=context, templates=templates)
+        return SendViewAction(view=view)
+
+
+class UseSharedTemplatesHandler(BaseStateHandler):
+    async def handle(
+        self, context: CommandContext, services: Any
+    ) -> FlowAction | Sequence[FlowAction]:
+        target_user = context.interaction.user
+        guild_id = getattr(context.interaction, "guild_id", None)
+        if guild_id is None:
+            embed = discord.Embed(
+                title="共有テンプレートは利用できません",
+                description="サーバー内でのみ共有テンプレートを利用できます。",
+                color=discord.Color.red(),
+            )
+            return SendMessageAction(embed=embed, ephemeral=True)
+
+        db_manager = resolve_db_manager(context, services)
+        user_data = db_manager.get_user(target_user.id, guild_id=guild_id)
+        templates = user_data.shared_templates if user_data else []
+
+        if not templates:
+            embed = discord.Embed(
+                title="共有テンプレートが見つかりません",
+                description="共有テンプレートが登録されていません。管理者に作成を依頼してください。",
+                color=discord.Color.orange(),
+            )
+            return SendMessageAction(embed=embed, ephemeral=True)
+
+        view = SharedTemplateSelectView(context=context, templates=templates)
+        return SendViewAction(view=view)
+
+
+class UsePublicTemplatesHandler(BaseStateHandler):
+    async def handle(
+        self, context: CommandContext, services: Any
+    ) -> FlowAction | Sequence[FlowAction]:
+        target_user = context.interaction.user
+        guild_id = getattr(context.interaction, "guild_id", None)
+        db_manager = resolve_db_manager(context, services)
+        user_data = db_manager.get_user(target_user.id, guild_id=guild_id)
+        templates = user_data.public_templates if user_data else []
+
+        if not templates:
+            embed = discord.Embed(
+                title="公開テンプレートが見つかりません",
+                description="利用可能な公開テンプレートがありません。",
+                color=discord.Color.orange(),
+            )
+            return SendMessageAction(embed=embed, ephemeral=True)
+
+        view = PublicTemplateSelectView(context=context, templates=templates)
         return SendViewAction(view=view)
 
 
@@ -158,6 +232,55 @@ class NeedMoreOptionsHandler(BaseStateHandler):
         modal = OptionNameEnterModal(context=context)
         return ShowModalAction(modal=modal)
 
+
+class SharedTemplateSelectedHandler(BaseStateHandler):
+    async def handle(
+        self, context: CommandContext, services: Any
+    ) -> FlowAction | Sequence[FlowAction]:
+        template = context.result
+        if not isinstance(template, Template):
+            raise ValueError("Template is not selected")
+
+        scope_label = (
+            "共有"
+            if template.scope is TemplateScope.GUILD
+            else "公開"
+        )
+        embed = discord.Embed(
+            title=f"{template.title}",
+            description=f"{scope_label}テンプレートを利用するか、自分用にコピーできます。",
+            color=discord.Color.blurple(),
+        )
+        if template.choices:
+            embed.add_field(
+                name="候補",
+                value="\n".join(f"・{choice}" for choice in template.choices),
+                inline=False,
+            )
+
+        view = SharedTemplateActionView(context=context, template=template)
+        return SendViewAction(view=view, followup=True)
+
+
+class SharedTemplateCopyHandler(BaseStateHandler):
+    async def handle(
+        self, context: CommandContext, services: Any
+    ) -> FlowAction | Sequence[FlowAction]:
+        template = context.result
+        if not isinstance(template, Template):
+            raise ValueError("Template is not selected")
+
+        db_manager = resolve_db_manager(context, services)
+        user_id = context.interaction.user.id
+        copied_template = db_manager.copy_shared_template_to_user(user_id, template)
+
+        embed = discord.Embed(
+            title="共有テンプレートをコピーしました",
+            description=f"**{copied_template.title}** を自分のテンプレートに追加しました。",
+            color=discord.Color.green(),
+        )
+
+        return SendMessageAction(embed=embed, ephemeral=True, followup=True)
 
 class OptionSelectionChangedHandler(BaseStateHandler):
     async def handle(
@@ -366,7 +489,8 @@ class UseHistoryHandler(BaseStateHandler):
     ) -> FlowAction | Sequence[FlowAction]:
         current_user = context.interaction.user
         db_manager = resolve_db_manager(context, services)
-        user_data = db_manager.get_user(current_user.id)
+        guild_id = getattr(context.interaction, "guild_id", None)
+        user_data = db_manager.get_user(current_user.id, guild_id=guild_id)
         user_least_template = getattr(user_data, "least_template", None) if user_data else None
 
         if not user_least_template:

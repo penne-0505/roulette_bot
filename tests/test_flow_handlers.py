@@ -15,13 +15,27 @@ from flow.handlers import (
     OptionSelectionChangedHandler,
     DeleteTemplateModeHandler,
     MemberSelectedHandler,
+    SharedTemplateCopyHandler,
+    SharedTemplateSelectedHandler,
     TemplateCreatedHandler,
     TemplateDeletedHandler,
     TemplateDeterminedHandler,
     UseExistingHandler,
     UseHistoryHandler,
+    UsePublicTemplatesHandler,
+    UseSharedTemplatesHandler,
 )
 from models.context_model import CommandContext
+from models.state_model import AmidakujiState
+from views.view import (
+    DeleteTemplateView,
+    MemberSelectView,
+    PublicTemplateSelectView,
+    SelectTemplateView,
+    SharedTemplateActionView,
+    SharedTemplateSelectView,
+    ApplyOptionsView,
+)
 from models.model import (
     AssignmentEntry,
     AssignmentHistory,
@@ -30,16 +44,15 @@ from models.model import (
     SelectionMode,
     Template,
     UserInfo,
+    TemplateScope
 )
-from models.state_model import AmidakujiState
-from views.view import ApplyOptionsView, DeleteTemplateView, MemberSelectView, SelectTemplateView
-
 
 @pytest.fixture
 def base_interaction():
     interaction = MagicMock(spec=discord.Interaction)
     interaction.user = MagicMock(id=42)
     interaction.response = MagicMock()
+    interaction.response.is_done.return_value = False
     interaction.followup = MagicMock()
     interaction.guild = None
     interaction.guild_id = 999
@@ -69,6 +82,72 @@ async def test_use_existing_handler_returns_select_view(base_interaction):
 
 
 @pytest.mark.asyncio
+async def test_use_shared_templates_handler_requires_guild(base_interaction):
+    base_interaction.guild_id = None
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.MODE_USE_SHARED,
+    )
+    context.result = base_interaction
+
+    services = SimpleNamespace(db=MagicMock())
+    handler = UseSharedTemplatesHandler()
+    action = await handler.handle(context, services)
+
+    assert isinstance(action, SendMessageAction)
+    assert action.embed is not None
+    assert "サーバー内でのみ共有テンプレートを利用できます" in action.embed.description
+
+
+@pytest.mark.asyncio
+async def test_use_shared_templates_handler_returns_select_view(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.MODE_USE_SHARED,
+    )
+    context.result = base_interaction
+
+    template = Template(
+        title="Guild Shared",
+        choices=["A"],
+        scope=TemplateScope.GUILD,
+    )
+    user = UserInfo(id=42, name="Tester", shared_templates=[template])
+
+    services = SimpleNamespace(db=MagicMock())
+    services.db.get_user.return_value = user
+
+    handler = UseSharedTemplatesHandler()
+    action = await handler.handle(context, services)
+
+    assert isinstance(action, SendViewAction)
+    assert isinstance(action.view, SharedTemplateSelectView)
+
+
+@pytest.mark.asyncio
+async def test_use_public_templates_handler_returns_select_view(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.MODE_USE_PUBLIC,
+    )
+    context.result = base_interaction
+
+    template = Template(
+        title="Public",
+        choices=["A"],
+        scope=TemplateScope.PUBLIC,
+    )
+    user = UserInfo(id=42, name="Tester", public_templates=[template])
+
+    services = SimpleNamespace(db=MagicMock())
+    services.db.get_user.return_value = user
+
+    handler = UsePublicTemplatesHandler()
+    action = await handler.handle(context, services)
+
+    assert isinstance(action, SendViewAction)
+    assert isinstance(action.view, PublicTemplateSelectView)
+
 async def test_option_name_entered_handler_updates_snapshot(base_interaction):
     context = CommandContext(
         interaction=base_interaction,
@@ -163,7 +242,7 @@ async def test_option_moved_down_handler_swaps_options(base_interaction):
     assert context.options_snapshot == ["Alpha", "Gamma", "Beta"]
     assert context.option_edit_index == 2
     assert isinstance(actions[1], SendMessageAction)
-    assert "Beta" in (actions[1].content or "")
+    assert "Beta" in (actions[1].content or ""
 
 
 @pytest.mark.asyncio
@@ -321,6 +400,52 @@ async def test_use_history_handler_returns_followup_when_history_exists(base_int
     assert action.interaction is context.history[AmidakujiState.COMMAND_EXECUTED]
     assert context.state is AmidakujiState.TEMPLATE_DETERMINED
     assert context.result is template
+
+
+@pytest.mark.asyncio
+async def test_shared_template_selected_handler_returns_action_view(base_interaction):
+    template = Template(
+        title="Guild Shared",
+        choices=["A"],
+        scope=TemplateScope.GUILD,
+    )
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.SHARED_TEMPLATE_SELECTED,
+    )
+    context.result = template
+
+    handler = SharedTemplateSelectedHandler()
+    action = await handler.handle(context, services=None)
+
+    assert isinstance(action, SendViewAction)
+    assert isinstance(action.view, SharedTemplateActionView)
+    assert action.followup is True
+
+
+@pytest.mark.asyncio
+async def test_shared_template_copy_handler_invokes_copy(base_interaction):
+    template = Template(
+        title="Guild Shared",
+        choices=["A"],
+        scope=TemplateScope.GUILD,
+    )
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.SHARED_TEMPLATE_COPY_REQUESTED,
+    )
+    context.result = template
+
+    copied = Template(title="Guild Shared (2)", choices=["A"])
+    services = SimpleNamespace(db=MagicMock())
+    services.db.copy_shared_template_to_user.return_value = copied
+
+    handler = SharedTemplateCopyHandler()
+    action = await handler.handle(context, services)
+
+    services.db.copy_shared_template_to_user.assert_called_once_with(42, template)
+    assert isinstance(action, SendMessageAction)
+    assert action.followup is True
 
 
 @pytest.mark.asyncio
