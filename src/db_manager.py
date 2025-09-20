@@ -85,7 +85,7 @@ class HistoryRepository:
         template_title: str | None = None,
         limit: int = 10,
         since: datetime | None = None,
-    ) -> Iterable[dict] | None:
+    ) -> list[dict]:
         try:
             query = self.ref.where("guild_id", "==", guild_id)
             if template_title is not None:
