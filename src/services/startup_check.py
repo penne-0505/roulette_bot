@@ -7,7 +7,11 @@ from typing import Iterable, List
 
 import discord
 
-from db_manager import DBManager
+from db_manager import (
+    COLLECTION_SENTINEL_DOCUMENT_ID,
+    DBManager,
+    REQUIRED_COLLECTIONS as DB_REQUIRED_COLLECTIONS,
+)
 from utils import ERROR, INFO, SUCCESS, WARN, green, red, yellow
 
 
@@ -31,12 +35,7 @@ class CheckResult:
 class StartupSelfCheck:
     """Run diagnostics required for safe bot execution."""
 
-    REQUIRED_COLLECTIONS: tuple[str, ...] = (
-        "users",
-        "info",
-        "shared_templates",
-        "history",
-    )
+    REQUIRED_COLLECTIONS: tuple[str, ...] = DB_REQUIRED_COLLECTIONS
 
     def __init__(self, db_manager: DBManager) -> None:
         self._db_manager = db_manager
@@ -134,13 +133,27 @@ class StartupSelfCheck:
                 )
             ]
 
+        try:
+            self._db_manager.ensure_required_collections()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            return [
+                CheckResult(
+                    name="firestore_collections",
+                    status=CheckStatus.ERROR,
+                    message=f"Failed to ensure required collections: {exc}",
+                )
+            ]
+
         results: list[CheckResult] = []
         for collection_name in collections:
             try:
-                has_document = next(
-                    db.collection(collection_name).limit(1).stream(),
-                    None,
-                )
+                has_document = None
+                documents = db.collection(collection_name).limit(5).stream()
+                for document in documents:
+                    if getattr(document, "id", None) == COLLECTION_SENTINEL_DOCUMENT_ID:
+                        continue
+                    has_document = document
+                    break
                 if has_document is None:
                     results.append(
                         CheckResult(

@@ -3,8 +3,12 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import utils
-from db_manager import DBManager
-from models.model import Template, TemplateScope, UserInfo
+from db_manager import (
+    COLLECTION_SENTINEL_DOCUMENT_ID,
+    DBManager,
+    SharedTemplateRepository,
+    REQUIRED_COLLECTIONS,
+)
 from models.model import Pair, PairList, SelectionMode, Template, TemplateScope, UserInfo
 
 def test_get_embed_mode_initializes_missing_document():
@@ -54,6 +58,98 @@ def test_get_default_templates_initializes_when_missing_document():
 
 def _make_doc(data: dict, *, doc_id: str) -> SimpleNamespace:
     return SimpleNamespace(id=doc_id, to_dict=lambda: data)
+
+
+def _make_document_ref(*, exists: bool) -> MagicMock:
+    document_ref = MagicMock()
+    document_ref.get.return_value = SimpleNamespace(exists=exists)
+    return document_ref
+
+
+def test_ensure_required_collections_creates_sentinel_documents():
+    utils.Singleton._instances.pop(DBManager, None)
+    manager = DBManager.get_instance()
+
+    collection_refs: dict[str, MagicMock] = {}
+    document_refs: dict[str, MagicMock] = {}
+
+    def collection_side_effect(name: str) -> MagicMock:
+        collection_ref = MagicMock()
+        document_ref = _make_document_ref(exists=False)
+        collection_ref.document.return_value = document_ref
+        collection_refs[name] = collection_ref
+        document_refs[name] = document_ref
+        return collection_ref
+
+    db_mock = MagicMock()
+    db_mock.collection.side_effect = collection_side_effect
+
+    manager.db = db_mock
+    manager.info_repository = MagicMock()
+    manager.user_repository = MagicMock()
+    manager.history_repository = MagicMock()
+
+    try:
+        manager.ensure_required_collections()
+    finally:
+        utils.Singleton._instances.pop(DBManager, None)
+
+    assert set(collection_refs) == set(REQUIRED_COLLECTIONS)
+    for document_ref in document_refs.values():
+        document_ref.set.assert_called_once()
+
+
+def test_ensure_required_collections_skips_existing_sentinel():
+    utils.Singleton._instances.pop(DBManager, None)
+    manager = DBManager.get_instance()
+
+    document_refs: dict[str, MagicMock] = {}
+
+    def collection_side_effect(name: str) -> MagicMock:
+        collection_ref = MagicMock()
+        document_ref = _make_document_ref(exists=True)
+        collection_ref.document.return_value = document_ref
+        document_refs[name] = document_ref
+        return collection_ref
+
+    db_mock = MagicMock()
+    db_mock.collection.side_effect = collection_side_effect
+
+    manager.db = db_mock
+    manager.info_repository = MagicMock()
+    manager.user_repository = MagicMock()
+    manager.history_repository = MagicMock()
+
+    try:
+        manager.ensure_required_collections()
+    finally:
+        utils.Singleton._instances.pop(DBManager, None)
+
+    assert set(document_refs) == set(REQUIRED_COLLECTIONS)
+    for document_ref in document_refs.values():
+        document_ref.set.assert_not_called()
+
+
+def test_shared_template_repository_list_skips_sentinel():
+    db_mock = MagicMock()
+    repo = SharedTemplateRepository(db_mock)
+
+    sentinel_doc = SimpleNamespace(
+        id=COLLECTION_SENTINEL_DOCUMENT_ID,
+        to_dict=lambda: {},
+    )
+    real_doc = SimpleNamespace(
+        id="real_doc",
+        to_dict=lambda: {"scope": "public"},
+    )
+
+    repo.ref = MagicMock()
+    repo.ref.stream.return_value = iter([sentinel_doc, real_doc])
+
+    documents = repo.list_templates()
+
+    assert documents == [real_doc]
+    repo.ref.stream.assert_called_once()
 
 
 def test_get_user_includes_shared_and_public_templates():
