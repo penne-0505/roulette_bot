@@ -16,11 +16,15 @@ from flow.handlers import (
     MemberSelectedHandler,
     NeedMoreOptionsHandler,
     OptionNameEnteredHandler,
+    SharedTemplateCopyHandler,
+    SharedTemplateSelectedHandler,
     TemplateDeletedHandler,
     TemplateCreatedHandler,
     TemplateDeterminedHandler,
     TemplateTitleEnteredHandler,
     UseExistingHandler,
+    UsePublicTemplatesHandler,
+    UseSharedTemplatesHandler,
     UseHistoryHandler,
 )
 from models.context_model import CommandContext
@@ -38,6 +42,8 @@ class FlowController:
             AmidakujiState.MODE_CREATE_NEW: CreateNewHandler(),
             AmidakujiState.MODE_USE_HISTORY: UseHistoryHandler(),
             AmidakujiState.MODE_DELETE_TEMPLATE: DeleteTemplateModeHandler(),
+            AmidakujiState.MODE_USE_SHARED: UseSharedTemplatesHandler(),
+            AmidakujiState.MODE_USE_PUBLIC: UsePublicTemplatesHandler(),
             AmidakujiState.TEMPLATE_TITLE_ENTERED: TemplateTitleEnteredHandler(),
             AmidakujiState.ENTER_OPTION_BUTTON_CLICKED: EnterOptionButtonHandler(),
             AmidakujiState.OPTION_NAME_ENTERED: OptionNameEnteredHandler(),
@@ -46,6 +52,8 @@ class FlowController:
             AmidakujiState.TEMPLATE_DELETED: TemplateDeletedHandler(),
             AmidakujiState.TEMPLATE_DETERMINED: TemplateDeterminedHandler(),
             AmidakujiState.MEMBER_SELECTED: MemberSelectedHandler(),
+            AmidakujiState.SHARED_TEMPLATE_SELECTED: SharedTemplateSelectedHandler(),
+            AmidakujiState.SHARED_TEMPLATE_COPY_REQUESTED: SharedTemplateCopyHandler(),
             AmidakujiState.CANCELLED: CancelledHandler(),
         }
 

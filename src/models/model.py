@@ -1,19 +1,31 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 
 import discord
 
 
+class TemplateScope(Enum):
+    """テンプレートの共有範囲を示す列挙体。"""
+
+    PRIVATE = "private"
+    GUILD = "guild"
+    PUBLIC = "public"
+
+
 @dataclass
 class Template:
-    """
-    テンプレートのデータモデル。DBに保存するときもこの形式を使う。
-    """
-
-    # 現状、タイトルの重複は許容できない
+    """テンプレートのデータモデル。DBに保存するときもこの形式を使う。"""
 
     title: str
     choices: list[str]
+    scope: TemplateScope = TemplateScope.PRIVATE
+    created_by: int | None = None
+    guild_id: int | None = None
+    template_id: str | None = None
+    updated_at: datetime | None = None
 
 
 @dataclass
@@ -27,6 +39,8 @@ class UserInfo:
     name: str
     least_template: Template | None = field(default=None)
     custom_templates: list[Template] = field(default_factory=list)
+    shared_templates: list[Template] = field(default_factory=list)
+    public_templates: list[Template] = field(default_factory=list)
 
 
 @dataclass

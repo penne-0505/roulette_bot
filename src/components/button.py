@@ -92,6 +92,34 @@ class UseExistingButton(discord.ui.Button):
         )
 
 
+class UseSharedTemplatesButton(discord.ui.Button):
+    def __init__(self, context: CommandContext):
+        super().__init__(style=discord.ButtonStyle.primary, label="共有テンプレート")
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MODE_USE_SHARED,
+            interaction,
+            interaction,
+        )
+
+
+class UsePublicTemplatesButton(discord.ui.Button):
+    def __init__(self, context: CommandContext):
+        super().__init__(style=discord.ButtonStyle.primary, label="公開テンプレート")
+        self.context = context
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.MODE_USE_PUBLIC,
+            interaction,
+            interaction,
+        )
+
+
 class CreateNewButton(discord.ui.Button):
     def __init__(self, context: CommandContext):
         super().__init__(style=discord.ButtonStyle.success, label="テンプレートを作成")
@@ -136,5 +164,37 @@ class BackToTemplateSelectButton(discord.ui.Button):
         await flow.dispatch(
             AmidakujiState.MODE_USE_EXISTING,
             interaction,
+            interaction,
+        )
+
+
+class UseSharedTemplateButton(discord.ui.Button):
+    def __init__(self, context: CommandContext, template: Template):
+        super().__init__(style=discord.ButtonStyle.primary, label="このテンプレートを使う")
+        self.context = context
+        self.template = template
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.TEMPLATE_DETERMINED,
+            self.template,
+            interaction,
+        )
+
+
+class CopySharedTemplateButton(discord.ui.Button):
+    def __init__(self, context: CommandContext, template: Template):
+        super().__init__(
+            style=discord.ButtonStyle.secondary, label="自分用にコピー"
+        )
+        self.context = context
+        self.template = template
+
+    async def callback(self, interaction: discord.Interaction):
+        flow = _get_flow(self.context)
+        await flow.dispatch(
+            AmidakujiState.SHARED_TEMPLATE_COPY_REQUESTED,
+            self.template,
             interaction,
         )
