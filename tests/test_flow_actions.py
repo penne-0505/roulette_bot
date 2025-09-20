@@ -1,10 +1,11 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
 from flow.actions import (
     DeferResponseAction,
+    EditMessageAction,
     SendMessageAction,
     SendViewAction,
     ShowModalAction,
@@ -19,6 +20,7 @@ class DummyResponse:
         self.sent_messages: list[dict] = []
         self.sent_modal = None
         self.deferred = None
+        self.edited_messages: list[dict] = []
 
     def is_done(self) -> bool:
         return self._done
@@ -31,6 +33,9 @@ class DummyResponse:
 
     async def defer(self, *, ephemeral: bool = True):
         self.deferred = ephemeral
+
+    async def edit_message(self, **payload):
+        self.edited_messages.append(payload)
 
 
 class DummyFollowup:
@@ -47,6 +52,7 @@ def context():
     interaction.response = DummyResponse(done=False)
     interaction.followup = DummyFollowup()
     interaction.user = MagicMock()
+    interaction.edit_original_response = AsyncMock()
 
     context = CommandContext(
         interaction=interaction,
@@ -86,6 +92,7 @@ async def test_send_view_action_forces_followup(context):
 async def test_send_message_action_includes_embeds_and_content(context):
     embed = discord.Embed(title="Hello")
     embeds = [discord.Embed(title="World")]
+    view = discord.ui.View()
 
     action = SendMessageAction(
         content="greetings",
@@ -93,6 +100,7 @@ async def test_send_message_action_includes_embeds_and_content(context):
         embeds=embeds,
         ephemeral=False,
         followup=False,
+        view=view,
     )
     await action.execute(context)
 
@@ -102,6 +110,7 @@ async def test_send_message_action_includes_embeds_and_content(context):
             "embed": embed,
             "embeds": embeds,
             "ephemeral": False,
+            "view": view,
         }
     ]
 
@@ -146,3 +155,30 @@ async def test_defer_response_action_defers_when_pending(context):
     await action.execute(context)
 
     assert context.interaction.response.deferred is False
+
+
+@pytest.mark.asyncio
+async def test_edit_message_action_uses_edit_message(context):
+    view = discord.ui.View()
+    action = EditMessageAction(content="updated", view=view)
+
+    await action.execute(context)
+
+    assert context.interaction.response.edited_messages == [
+        {"content": "updated", "view": view}
+    ]
+    context.interaction.edit_original_response.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_edit_message_action_uses_original_response_when_done(context):
+    context.interaction.response = DummyResponse(done=True)
+    context.interaction.followup = DummyFollowup()
+    context.interaction.edit_original_response = AsyncMock()
+
+    action = EditMessageAction(content="updated")
+    await action.execute(context)
+
+    context.interaction.edit_original_response.assert_awaited_once_with(
+        content="updated"
+    )
