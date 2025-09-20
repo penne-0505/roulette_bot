@@ -148,6 +148,7 @@ async def test_use_public_templates_handler_returns_select_view(base_interaction
     assert isinstance(action, SendViewAction)
     assert isinstance(action.view, PublicTemplateSelectView)
 
+@pytest.mark.asyncio
 async def test_option_name_entered_handler_updates_snapshot(base_interaction):
     context = CommandContext(
         interaction=base_interaction,
@@ -242,7 +243,7 @@ async def test_option_moved_down_handler_swaps_options(base_interaction):
     assert context.options_snapshot == ["Alpha", "Gamma", "Beta"]
     assert context.option_edit_index == 2
     assert isinstance(actions[1], SendMessageAction)
-    assert "Beta" in (actions[1].content or ""
+    assert "Beta" in (actions[1].content or "")
 
 
 @pytest.mark.asyncio

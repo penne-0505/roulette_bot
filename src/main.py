@@ -17,8 +17,10 @@ from models.context_model import CommandContext
 from models.model import SelectionMode
 from models.state_model import AmidakujiState
 from services.app_context import create_db_manager
+from services.startup_check import StartupSelfCheck
 from utils import (
     DATEFORMAT,
+    ERROR,
     FORMAT,
     INFO,
     CommandsTranslator,
@@ -50,6 +52,13 @@ class Client(discord.Client):
     async def on_ready(self):
         # デフォルトテンプレートの初期化
         self.db._init_default_templates()
+
+        # 起動時セルフチェック
+        checker = StartupSelfCheck(self.db)
+        if not checker.run(discord_client=self):
+            logging.error(ERROR + "Critical startup check failed. Shutting down client.")
+            await self.close()
+            return
 
         # 以下ログ
         logging.info(
