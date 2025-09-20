@@ -99,6 +99,7 @@ def test_get_user_includes_shared_and_public_templates():
     manager.user_repository = mock_user_repository
     manager.info_repository = mock_info_repository
     manager.shared_template_repository = mock_shared_repository
+    manager.history_repository = MagicMock()
     manager.db = object()
 
     try:
@@ -128,6 +129,7 @@ def test_copy_shared_template_to_user_generates_unique_title():
 
     manager.get_user = MagicMock(return_value=user)
     manager.add_custom_template = MagicMock()
+    manager.history_repository = MagicMock()
 
     shared_template = Template(
         title="Guild Shared",

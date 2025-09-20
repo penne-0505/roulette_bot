@@ -28,6 +28,7 @@ from models.model import (
     AssignmentHistory,
     SelectionMode,
     Template,
+    TemplateScope,
     UserInfo,
 )
 
