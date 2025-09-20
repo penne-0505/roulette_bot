@@ -47,3 +47,24 @@ def test_update_context_replaces_interaction(mock_interaction):
     assert context.state is AmidakujiState.MODE_CREATE_NEW
     assert context.result is new_interaction
     assert context.history[AmidakujiState.MODE_CREATE_NEW] is new_interaction
+
+
+def test_set_option_snapshot_updates_state(mock_interaction):
+    context = CommandContext(interaction=mock_interaction, state=AmidakujiState.COMMAND_EXECUTED)
+    context.result = mock_interaction
+
+    context.set_option_snapshot(["A", "B"], preferred_index=0)
+
+    assert context.options_snapshot == ["A", "B"]
+    assert context.history[AmidakujiState.OPTION_NAME_ENTERED] == ["A", "B"]
+    assert context.option_edit_index == 0
+
+    context.option_edit_index = 1
+    context.set_option_snapshot(["A", "B", "C"], preferred_index=2)
+
+    assert context.options_snapshot == ["A", "B", "C"]
+    assert context.option_edit_index == 2
+
+    context.set_option_snapshot([], preferred_index=0)
+    assert context.options_snapshot == []
+    assert context.option_edit_index is None

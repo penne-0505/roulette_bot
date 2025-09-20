@@ -5,8 +5,13 @@ from unittest.mock import MagicMock
 import discord
 
 import data_process
-from flow.actions import DeferResponseAction, SendMessageAction, SendViewAction
+from flow.actions import DeferResponseAction, EditMessageAction, SendMessageAction, SendViewAction
 from flow.handlers import (
+    OptionDeletedHandler,
+    OptionMovedDownHandler,
+    OptionMovedUpHandler,
+    OptionNameEnteredHandler,
+    OptionSelectionChangedHandler,
     DeleteTemplateModeHandler,
     MemberSelectedHandler,
     TemplateCreatedHandler,
@@ -18,7 +23,7 @@ from flow.handlers import (
 from models.context_model import CommandContext
 from models.model import Template, UserInfo
 from models.state_model import AmidakujiState
-from views.view import DeleteTemplateView, MemberSelectView, SelectTemplateView
+from views.view import ApplyOptionsView, DeleteTemplateView, MemberSelectView, SelectTemplateView
 
 
 @pytest.fixture
@@ -53,8 +58,106 @@ async def test_use_existing_handler_returns_select_view(base_interaction):
 
 
 @pytest.mark.asyncio
+async def test_option_name_entered_handler_updates_snapshot(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_NAME_ENTERED,
+    )
+    context.result = ["Alpha", "Beta"]
+
+    handler = OptionNameEnteredHandler()
+    action = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(action, SendMessageAction)
+    assert action.embed is not None
+    assert "2. **Beta**" in action.embed.description
+    assert isinstance(action.view, ApplyOptionsView)
+    assert context.options_snapshot == ["Alpha", "Beta"]
+    assert context.option_edit_index == 1
+
+
+@pytest.mark.asyncio
+async def test_option_selection_changed_handler_updates_index(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_MANAGE_SELECTED,
+    )
+    context.result = 1
+    context.set_option_snapshot(["Alpha", "Beta"], preferred_index=0)
+
+    handler = OptionSelectionChangedHandler()
+    action = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(action, EditMessageAction)
+    assert isinstance(action.view, ApplyOptionsView)
+    assert context.option_edit_index == 1
+    assert action.embed is not None
+    assert "2. **Beta**" in action.embed.description
+
+
+@pytest.mark.asyncio
+async def test_option_deleted_handler_removes_option(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_DELETED,
+    )
+    context.result = base_interaction
+    context.set_option_snapshot(["Alpha", "Beta", "Gamma"], preferred_index=1)
+
+    handler = OptionDeletedHandler()
+    actions = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], EditMessageAction)
+    assert isinstance(actions[1], SendMessageAction)
+    assert "Beta" in (actions[1].content or "")
+    assert context.options_snapshot == ["Alpha", "Gamma"]
+    assert context.option_edit_index == 1
+
+
+@pytest.mark.asyncio
+async def test_option_moved_up_handler_swaps_options(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_MOVED_UP,
+    )
+    context.result = base_interaction
+    context.set_option_snapshot(["Alpha", "Beta", "Gamma"], preferred_index=1)
+
+    handler = OptionMovedUpHandler()
+    actions = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], EditMessageAction)
+    assert context.options_snapshot == ["Beta", "Alpha", "Gamma"]
+    assert context.option_edit_index == 0
+    assert isinstance(actions[1], SendMessageAction)
+    assert "Beta" in (actions[1].content or "")
+
+
+@pytest.mark.asyncio
+async def test_option_moved_down_handler_swaps_options(base_interaction):
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.OPTION_MOVED_DOWN,
+    )
+    context.result = base_interaction
+    context.set_option_snapshot(["Alpha", "Beta", "Gamma"], preferred_index=1)
+
+    handler = OptionMovedDownHandler()
+    actions = await handler.handle(context, SimpleNamespace())
+
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], EditMessageAction)
+    assert context.options_snapshot == ["Alpha", "Gamma", "Beta"]
+    assert context.option_edit_index == 2
+    assert isinstance(actions[1], SendMessageAction)
+    assert "Beta" in (actions[1].content or "")
+
+
+@pytest.mark.asyncio
 async def test_template_created_handler_updates_context_and_saves_template(base_interaction):
-    template = Template(title="Valorant", choices=["Duelist"])
+    template = Template(title="Valorant", choices=["Duelist", "Initiator"])
     context = CommandContext(
         interaction=base_interaction,
         state=AmidakujiState.TEMPLATE_CREATED,
@@ -74,6 +177,26 @@ async def test_template_created_handler_updates_context_and_saves_template(base_
     )
     assert context.state is AmidakujiState.TEMPLATE_DETERMINED
     assert context.result is template
+
+
+@pytest.mark.asyncio
+async def test_template_created_handler_rejects_single_option(base_interaction):
+    template = Template(title="Solo", choices=["Only"])
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.TEMPLATE_CREATED,
+    )
+    context.result = template
+
+    services = SimpleNamespace(db=MagicMock())
+
+    handler = TemplateCreatedHandler()
+    action = await handler.handle(context, services)
+
+    assert isinstance(action, SendMessageAction)
+    assert action.embed is not None
+    assert "2件以上" in action.embed.description
+    services.db.add_custom_template.assert_not_called()
 
 
 @pytest.mark.asyncio
