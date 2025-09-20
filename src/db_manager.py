@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +8,13 @@ import firebase_admin
 from firebase_admin import App, credentials, firestore
 
 import utils
-from models.model import Template, UserInfo
+from models.model import (
+    AssignmentEntry,
+    AssignmentHistory,
+    SelectionMode,
+    Template,
+    UserInfo,
+)
 
 
 class UserRepository:
@@ -60,12 +67,46 @@ class InfoRepository:
             raise
 
 
+class HistoryRepository:
+    def __init__(self, db: firestore.firestore.Client) -> None:
+        self.ref = db.collection("history")
+
+    def add_entry(self, data: dict) -> None:
+        try:
+            document = self.ref.document()
+            document.set(data)
+        except Exception:
+            raise
+
+    def fetch_recent(
+        self,
+        *,
+        guild_id: int,
+        template_title: str | None = None,
+        limit: int = 10,
+        since: datetime | None = None,
+    ) -> Iterable[dict] | None:
+        try:
+            query = self.ref.where("guild_id", "==", guild_id)
+            if template_title is not None:
+                query = query.where("template_title", "==", template_title)
+            if since is not None:
+                query = query.where("created_at", ">=", since)
+            query = query.order_by("created_at", direction=firestore.Query.DESCENDING)
+            if limit:
+                query = query.limit(limit)
+            return [doc.to_dict() for doc in query.stream()]
+        except Exception:
+            raise
+
+
 class DBManager(metaclass=utils.Singleton):
     def __init__(self) -> None:
         self._app: App | None = None
         self.db: firestore.firestore.Client | None = None
         self.user_repository: UserRepository | None = None
         self.info_repository: InfoRepository | None = None
+        self.history_repository: HistoryRepository | None = None
 
     @classmethod
     def get_instance(cls) -> "DBManager":
@@ -96,9 +137,15 @@ class DBManager(metaclass=utils.Singleton):
         self.db = firestore.client(app=app)
         self.user_repository = UserRepository(self.db)
         self.info_repository = InfoRepository(self.db)
+        self.history_repository = HistoryRepository(self.db)
 
     def _ensure_configured(self) -> None:
-        if self.user_repository is None or self.info_repository is None or self.db is None:
+        if (
+            self.user_repository is None
+            or self.info_repository is None
+            or self.history_repository is None
+            or self.db is None
+        ):
             raise RuntimeError(
                 "DBManager is not configured. Call initialize() or with_app() before use."
             )
@@ -112,6 +159,11 @@ class DBManager(metaclass=utils.Singleton):
         self._ensure_configured()
         assert self.info_repository is not None
         return self.info_repository
+
+    def _get_history_repository(self) -> HistoryRepository:
+        self._ensure_configured()
+        assert self.history_repository is not None
+        return self.history_repository
 
     def _validate_user(self, data: dict) -> bool:
         return data["id"] is not None and data["name"] is not None
@@ -184,6 +236,16 @@ class DBManager(metaclass=utils.Singleton):
 
         return [self._dict_to_template(t) for t in template_items]
 
+    def _read_or_initialize_selection_mode(
+        self, info_repository: InfoRepository
+    ) -> tuple[dict[str, str], bool]:
+        data = info_repository.read_document("selection_mode")
+        should_initialize = not isinstance(data, dict) or "selection_mode" not in data
+        if should_initialize:
+            data = {"selection_mode": SelectionMode.RANDOM.value}
+            info_repository.create_document("selection_mode", data)
+        return data, should_initialize
+
     def toggle_embed_mode(self) -> None:
         info_repository = self._get_info_repository()
         try:
@@ -205,6 +267,133 @@ class DBManager(metaclass=utils.Singleton):
 
         except Exception:
             raise
+
+    def set_selection_mode(self, mode: SelectionMode | str) -> None:
+        normalized_mode = (
+            mode.value if isinstance(mode, SelectionMode) else str(mode).lower()
+        )
+        if normalized_mode not in {
+            SelectionMode.RANDOM.value,
+            SelectionMode.BIAS_REDUCTION.value,
+        }:
+            raise ValueError("Invalid selection mode")
+
+        info_repository = self._get_info_repository()
+        try:
+            data, _ = self._read_or_initialize_selection_mode(info_repository)
+            data["selection_mode"] = normalized_mode
+            info_repository.create_document("selection_mode", data)
+        except Exception:
+            raise
+
+    def get_selection_mode(self) -> str:
+        info_repository = self._get_info_repository()
+        try:
+            data, _ = self._read_or_initialize_selection_mode(info_repository)
+            return data["selection_mode"]
+        except Exception:
+            raise
+
+    def save_history(
+        self,
+        *,
+        guild_id: int,
+        template: Template,
+        pairs: "PairList",
+        selection_mode: SelectionMode | str,
+    ) -> None:
+        history_repository = self._get_history_repository()
+        normalized_mode = (
+            selection_mode.value
+            if isinstance(selection_mode, SelectionMode)
+            else str(selection_mode).lower()
+        )
+        timestamp = datetime.now(timezone.utc)
+        entries = [
+            {
+                "user_id": pair.user.id,
+                "user_name": getattr(pair.user, "display_name", pair.user.name),
+                "choice": pair.choice,
+            }
+            for pair in pairs.pairs
+        ]
+        data = {
+            "guild_id": guild_id,
+            "template_title": template.title,
+            "choices": list(template.choices),
+            "selection_mode": normalized_mode,
+            "created_at": timestamp,
+            "entries": entries,
+        }
+
+        try:
+            history_repository.add_entry(data)
+        except Exception:
+            raise
+
+    def _dict_to_history(self, data: dict) -> AssignmentHistory:
+        selection_mode_value = data.get("selection_mode", SelectionMode.RANDOM.value)
+        if isinstance(selection_mode_value, str):
+            try:
+                selection_mode = SelectionMode(selection_mode_value)
+            except ValueError:
+                selection_mode = SelectionMode.RANDOM
+        elif isinstance(selection_mode_value, SelectionMode):
+            selection_mode = selection_mode_value
+        else:
+            selection_mode = SelectionMode.RANDOM
+
+        created_at = data.get("created_at")
+        if not isinstance(created_at, datetime):
+            raise ValueError("Invalid history timestamp")
+
+        entries_data = data.get("entries")
+        if not isinstance(entries_data, list):
+            raise ValueError("Invalid history entries")
+
+        entries = [
+            AssignmentEntry(
+                user_id=entry["user_id"],
+                user_name=entry.get("user_name", ""),
+                choice=entry["choice"],
+            )
+            for entry in entries_data
+        ]
+
+        return AssignmentHistory(
+            guild_id=data["guild_id"],
+            template_title=data["template_title"],
+            created_at=created_at,
+            entries=entries,
+            choices=list(data.get("choices", [])),
+            selection_mode=selection_mode,
+        )
+
+    def get_recent_history(
+        self,
+        *,
+        guild_id: int,
+        template_title: str | None = None,
+        limit: int = 10,
+        since: datetime | None = None,
+    ) -> list[AssignmentHistory]:
+        history_repository = self._get_history_repository()
+        try:
+            documents = history_repository.fetch_recent(
+                guild_id=guild_id, template_title=template_title, limit=limit, since=since
+            )
+        except Exception:
+            raise
+
+        if not documents:
+            return []
+
+        histories = []
+        for document in documents:
+            if not isinstance(document, dict):
+                continue
+            histories.append(self._dict_to_history(document))
+        return histories
 
     def init_user(self, user_id: int, name: str) -> None:
         user_repository = self._get_user_repository()

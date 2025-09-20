@@ -1,24 +1,73 @@
 import random
+from collections import defaultdict
 
 import discord
 
-from models.model import Pair, PairList, ResultEmbedMode
+from models.model import Pair, PairList, ResultEmbedMode, SelectionMode
 
 
-def create_pair_from_list(users: list[discord.User], groupes: list[str]) -> PairList:
+def _normalize_selection_mode(mode: SelectionMode | str) -> str:
+    if isinstance(mode, SelectionMode):
+        return mode.value
+    return str(mode).lower()
+
+
+def _build_weight_matrix(
+    users: list[discord.User],
+    groupes: list[str],
+    weights: dict[int, dict[str, float]] | None,
+) -> dict[int, dict[str, float]]:
+    if weights is None:
+        return {user.id: {group: 1.0 for group in groupes} for user in users}
+
+    matrix: dict[int, dict[str, float]] = defaultdict(dict)
+    for user in users:
+        user_weights = weights.get(user.id, {})
+        matrix[user.id] = {
+            group: max(float(user_weights.get(group, 1.0)), 0.0) for group in groupes
+        }
+    return matrix
+
+
+def create_pair_from_list(
+    users: list[discord.User],
+    groupes: list[str],
+    *,
+    selection_mode: SelectionMode | str = SelectionMode.RANDOM,
+    weights: dict[int, dict[str, float]] | None = None,
+) -> PairList:
     if not users or not groupes:
         raise ValueError("ユーザーまたはグループが空です")
 
     pairs = []
     pairs_amount = min(len(users), len(groupes))
 
-    shuffled_users = users.copy()
     shuffled_groupes = groupes.copy()
-    random.shuffle(shuffled_users)
     random.shuffle(shuffled_groupes)
 
-    for i in range(pairs_amount):
-        pairs.append(Pair(user=shuffled_users[i], choice=shuffled_groupes[i]))
+    normalized_mode = _normalize_selection_mode(selection_mode)
+
+    if normalized_mode != SelectionMode.BIAS_REDUCTION.value:
+        shuffled_users = users.copy()
+        random.shuffle(shuffled_users)
+
+        for i in range(pairs_amount):
+            pairs.append(Pair(user=shuffled_users[i], choice=shuffled_groupes[i]))
+        return PairList(pairs=pairs)
+
+    weight_matrix = _build_weight_matrix(users, shuffled_groupes, weights)
+
+    available_users = users.copy()
+    for group in shuffled_groupes[:pairs_amount]:
+        user_weights = [weight_matrix[user.id][group] for user in available_users]
+        total_weight = sum(user_weights)
+        if total_weight <= 0:
+            selected_user = random.choice(available_users)
+        else:
+            selected_user = random.choices(available_users, weights=user_weights, k=1)[0]
+
+        pairs.append(Pair(user=selected_user, choice=group))
+        available_users.remove(selected_user)
 
     return PairList(pairs=pairs)
 
