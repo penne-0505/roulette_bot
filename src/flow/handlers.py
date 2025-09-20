@@ -165,7 +165,7 @@ class TemplateDeletedHandler(BaseStateHandler):
     ) -> FlowAction | Sequence[FlowAction]:
         template_title = context.result
         if not isinstance(template_title, str):
-            raise ValueError("Template title is not provided")
+            raise ValueError("Template title must be a string")
 
         user_id = context.interaction.user.id
         db_manager = resolve_db_manager(context, services)
