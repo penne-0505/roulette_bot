@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from enum import Enum, auto
 from typing import Dict, Iterable, List, Optional
 
 import discord
@@ -8,13 +7,6 @@ import discord
 from db_manager import DBManager
 from models.model import Template, TemplateScope
 from utils import generate_template_id
-
-
-class ShareAction(Enum):
-    SHARE_GUILD = auto()
-    SHARE_PUBLIC = auto()
-    UNSHARE_GUILD = auto()
-    UNSHARE_PUBLIC = auto()
 
 
 class TemplateSharingView(discord.ui.View):
@@ -45,7 +37,8 @@ class TemplateSharingView(discord.ui.View):
         self.public_templates: Dict[str, Template] = {
             template.template_id: template for template in public_templates
         }
-        self.current_action: Optional[ShareAction] = None
+        self.selected_scope: Optional[TemplateScope] = None
+        self.selected_template_id: Optional[str] = None
 
         self.share_guild_button = _ShareToGuildButton(self)
         self.share_public_button = _ShareToPublicButton(self)
@@ -64,14 +57,30 @@ class TemplateSharingView(discord.ui.View):
         self._update_components()
 
     def _update_components(self) -> None:
-        has_private = bool(self.private_templates)
-        has_guild_shared = bool(self.guild_templates)
-        has_public_shared = bool(self.public_templates)
-        self.share_guild_button.disabled = self.guild_id is None or not has_private
-        self.share_public_button.disabled = not has_private
-        self.unshare_guild_button.disabled = not has_guild_shared
-        self.unshare_public_button.disabled = not has_public_shared
+        self._ensure_selection_valid()
         self.template_select.update_options()
+
+        scope = self.selected_scope
+        self.share_guild_button.disabled = (
+            self.guild_id is None or scope is not TemplateScope.PRIVATE
+        )
+        self.share_public_button.disabled = scope is not TemplateScope.PRIVATE
+        self.unshare_guild_button.disabled = scope is not TemplateScope.GUILD
+        self.unshare_public_button.disabled = scope is not TemplateScope.PUBLIC
+
+    def _ensure_selection_valid(self) -> None:
+        if self.selected_scope is None or self.selected_template_id is None:
+            return
+
+        templates_by_scope = {
+            TemplateScope.PRIVATE: self.private_templates,
+            TemplateScope.GUILD: self.guild_templates,
+            TemplateScope.PUBLIC: self.public_templates,
+        }
+        templates = templates_by_scope.get(self.selected_scope)
+        if not templates or self.selected_template_id not in templates:
+            self.selected_scope = None
+            self.selected_template_id = None
 
     @staticmethod
     def _create_status_embed(message: str) -> discord.Embed:
@@ -81,21 +90,18 @@ class TemplateSharingView(discord.ui.View):
 
     def create_embed(self) -> discord.Embed:
         embed = discord.Embed(title="テンプレート共有・公開", color=discord.Color.blurple())
-        if self.current_action is None:
-            embed.description = "操作を選択してください。"
-            return embed
+        template: Optional[Template] = None
+        if self.selected_scope is not None and self.selected_template_id is not None:
+            template = self._get_template(self.selected_scope, self.selected_template_id)
 
-        if self.current_action is ShareAction.SHARE_GUILD:
-            if self.guild_id is None:
-                embed.description = "サーバー内でのみ共有できます。"
-            else:
-                embed.description = "共有するテンプレートを選択してください。"
-        elif self.current_action is ShareAction.SHARE_PUBLIC:
-            embed.description = "公開するテンプレートを選択してください。"
-        elif self.current_action is ShareAction.UNSHARE_GUILD:
-            embed.description = "共有解除するテンプレートを選択してください。"
+        if template is None:
+            embed.description = "共有・公開するテンプレートを選択してください。"
+        elif self.selected_scope is TemplateScope.PRIVATE:
+            embed.description = f"テンプレート「{template.title}」の共有先を選んでください。"
+        elif self.selected_scope is TemplateScope.GUILD:
+            embed.description = f"テンプレート「{template.title}」はサーバーで共有中です。共有を解除できます。"
         else:
-            embed.description = "公開解除するテンプレートを選択してください。"
+            embed.description = f"テンプレート「{template.title}」は公開中です。公開を解除できます。"
 
         embed.add_field(
             name="プライベート",
@@ -113,6 +119,17 @@ class TemplateSharingView(discord.ui.View):
             inline=True,
         )
         return embed
+
+    def _get_template(
+        self, scope: TemplateScope, template_id: str
+    ) -> Optional[Template]:
+        if scope is TemplateScope.PRIVATE:
+            return self.private_templates.get(template_id)
+        if scope is TemplateScope.GUILD:
+            return self.guild_templates.get(template_id)
+        if scope is TemplateScope.PUBLIC:
+            return self.public_templates.get(template_id)
+        return None
 
     async def render(
         self,
@@ -132,24 +149,57 @@ class TemplateSharingView(discord.ui.View):
                 ephemeral=True,
             )
 
-    def set_action(self, action: ShareAction) -> None:
-        self.current_action = action
-        self.template_select.update_options()
-
-    async def handle_selection(self, interaction: discord.Interaction, template_id: str) -> None:
-        if self.current_action is None:
-            await interaction.response.defer(thinking=False)
+    async def handle_selection(
+        self,
+        interaction: discord.Interaction,
+        scope: TemplateScope,
+        template_id: str,
+    ) -> None:
+        template = self._get_template(scope, template_id)
+        if template is None:
+            await self.render(interaction, status_message="テンプレートが見つかりません。")
             return
 
-        if self.current_action is ShareAction.SHARE_GUILD:
-            message = await self._share_to_guild(template_id)
-        elif self.current_action is ShareAction.SHARE_PUBLIC:
-            message = await self._share_to_public(template_id)
-        elif self.current_action is ShareAction.UNSHARE_GUILD:
-            message = await self._unshare_guild(template_id)
-        else:
-            message = await self._unshare_public(template_id)
+        self.selected_scope = scope
+        self.selected_template_id = template_id
+        await self.render(interaction)
 
+    async def share_to_guild(self, interaction: discord.Interaction) -> None:
+        if self.selected_scope is not TemplateScope.PRIVATE or self.selected_template_id is None:
+            await self.render(interaction, status_message="共有するテンプレートを選択してください。")
+            return
+
+        message = await self._share_to_guild(self.selected_template_id)
+        await self.render(interaction, status_message=message)
+
+    async def share_to_public(self, interaction: discord.Interaction) -> None:
+        if self.selected_scope is not TemplateScope.PRIVATE or self.selected_template_id is None:
+            await self.render(interaction, status_message="共有するテンプレートを選択してください。")
+            return
+
+        message = await self._share_to_public(self.selected_template_id)
+        await self.render(interaction, status_message=message)
+
+    async def unshare_guild(self, interaction: discord.Interaction) -> None:
+        if self.selected_scope is not TemplateScope.GUILD or self.selected_template_id is None:
+            await self.render(interaction, status_message="共有解除するテンプレートを選択してください。")
+            return
+
+        template_id = self.selected_template_id
+        message = await self._unshare_guild(template_id)
+        self.selected_scope = None
+        self.selected_template_id = None
+        await self.render(interaction, status_message=message)
+
+    async def unshare_public(self, interaction: discord.Interaction) -> None:
+        if self.selected_scope is not TemplateScope.PUBLIC or self.selected_template_id is None:
+            await self.render(interaction, status_message="公開解除するテンプレートを選択してください。")
+            return
+
+        template_id = self.selected_template_id
+        message = await self._unshare_public(template_id)
+        self.selected_scope = None
+        self.selected_template_id = None
         await self.render(interaction, status_message=message)
 
     async def _share_to_guild(self, template_id: str) -> str:
@@ -242,20 +292,40 @@ class _SharingTemplateSelect(discord.ui.Select):
         self.disabled = True
 
     def update_options(self) -> None:
-        action = self.template_view.current_action
+        view = self.template_view
         options: List[discord.SelectOption] = []
-        if action is ShareAction.SHARE_GUILD:
-            source = self.template_view.private_templates
-        elif action is ShareAction.SHARE_PUBLIC:
-            source = self.template_view.private_templates
-        elif action is ShareAction.UNSHARE_GUILD:
-            source = self.template_view.guild_templates
-        elif action is ShareAction.UNSHARE_PUBLIC:
-            source = self.template_view.public_templates
-        else:
-            source = {}
 
-        if not source:
+        def append_options(
+            source: Dict[str, Template],
+            scope: TemplateScope,
+            category_label: str,
+        ) -> None:
+            for template in source.values():
+                choice_preview = " / ".join(template.choices[:3]) if template.choices else "(候補なし)"
+                description_parts = [category_label]
+                if choice_preview:
+                    description_parts.append(choice_preview)
+                description = " / ".join(description_parts)
+                options.append(
+                    discord.SelectOption(
+                        label=template.title,
+                        value=f"{scope.value}:{template.template_id}",
+                        description=description[:100],
+                        default=(
+                            view.selected_scope is scope
+                            and view.selected_template_id == template.template_id
+                        ),
+                    )
+                )
+
+        append_options(view.private_templates, TemplateScope.PRIVATE, "プライベート")
+        append_options(view.guild_templates, TemplateScope.GUILD, "サーバー共有")
+        append_options(view.public_templates, TemplateScope.PUBLIC, "公開")
+
+        if options:
+            self.options = options
+            self.disabled = False
+        else:
             self.options = [
                 discord.SelectOption(
                     label="選択可能なテンプレートがありません",
@@ -263,23 +333,16 @@ class _SharingTemplateSelect(discord.ui.Select):
                 )
             ]
             self.disabled = True
-            return
-
-        for template in source.values():
-            description = " / ".join(template.choices[:3]) if template.choices else "(候補なし)"
-            options.append(
-                discord.SelectOption(
-                    label=template.title,
-                    value=template.template_id,
-                    description=description[:100] if description else None,
-                )
-            )
-        self.options = options
-        self.disabled = False
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        template_id = self.values[0]
-        await self.template_view.handle_selection(interaction, template_id)
+        value = self.values[0]
+        if value == "_DISABLED_":
+            await interaction.response.defer(thinking=False)
+            return
+
+        scope_value, template_id = value.split(":", 1)
+        scope = TemplateScope(scope_value)
+        await self.template_view.handle_selection(interaction, scope, template_id)
 
 
 class _ShareToGuildButton(discord.ui.Button):
@@ -288,8 +351,7 @@ class _ShareToGuildButton(discord.ui.Button):
         self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.template_view.set_action(ShareAction.SHARE_GUILD)
-        await self.template_view.render(interaction)
+        await self.template_view.share_to_guild(interaction)
 
 
 class _ShareToPublicButton(discord.ui.Button):
@@ -298,8 +360,7 @@ class _ShareToPublicButton(discord.ui.Button):
         self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.template_view.set_action(ShareAction.SHARE_PUBLIC)
-        await self.template_view.render(interaction)
+        await self.template_view.share_to_public(interaction)
 
 
 class _UnshareGuildButton(discord.ui.Button):
@@ -308,8 +369,7 @@ class _UnshareGuildButton(discord.ui.Button):
         self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.template_view.set_action(ShareAction.UNSHARE_GUILD)
-        await self.template_view.render(interaction)
+        await self.template_view.unshare_guild(interaction)
 
 
 class _UnsharePublicButton(discord.ui.Button):
@@ -318,8 +378,7 @@ class _UnsharePublicButton(discord.ui.Button):
         self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.template_view.set_action(ShareAction.UNSHARE_PUBLIC)
-        await self.template_view.render(interaction)
+        await self.template_view.unshare_public(interaction)
 
 
 class _CloseButton(discord.ui.Button):
