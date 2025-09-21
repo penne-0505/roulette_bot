@@ -3,6 +3,7 @@ import discord
 from models.context_model import CommandContext
 from models.model import Template
 from models.state_model import AmidakujiState
+from components.mixins import DisableViewOnCallbackMixin
 
 
 def _get_flow(context: CommandContext):
@@ -46,7 +47,9 @@ class NeedMoreOptionsButton(discord.ui.Button):
         )
 
 
-class ApplyOptionsButton(discord.ui.Button):
+class ApplyOptionsButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(style=discord.ButtonStyle.primary, label="テンプレートを保存")
         self.context = context
@@ -59,11 +62,19 @@ class ApplyOptionsButton(discord.ui.Button):
         )
 
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.TEMPLATE_CREATED,
-            template,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.TEMPLATE_CREATED,
+                template,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
+
+    def _should_disable_after_dispatch(self) -> bool:
+        return self.context.state is AmidakujiState.TEMPLATE_DETERMINED
 
 
 class OptionMoveUpButton(discord.ui.Button):
@@ -120,7 +131,9 @@ class OptionDeleteButton(discord.ui.Button):
         )
 
 
-class UseHistoryButton(discord.ui.Button):
+class UseHistoryButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(
             style=discord.ButtonStyle.secondary, label="最後に使ったテンプレート"
@@ -129,70 +142,105 @@ class UseHistoryButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MODE_USE_HISTORY,
-            interaction,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MODE_USE_HISTORY,
+                interaction,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class UseExistingButton(discord.ui.Button):
+class UseExistingButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(style=discord.ButtonStyle.primary, label="既存のテンプレート")
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MODE_USE_EXISTING,
-            interaction,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MODE_USE_EXISTING,
+                interaction,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class UseSharedTemplatesButton(discord.ui.Button):
+class UseSharedTemplatesButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(style=discord.ButtonStyle.primary, label="共有テンプレート")
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MODE_USE_SHARED,
-            interaction,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MODE_USE_SHARED,
+                interaction,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class UsePublicTemplatesButton(discord.ui.Button):
+class UsePublicTemplatesButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(style=discord.ButtonStyle.primary, label="公開テンプレート")
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MODE_USE_PUBLIC,
-            interaction,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MODE_USE_PUBLIC,
+                interaction,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class CreateNewButton(discord.ui.Button):
+class CreateNewButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(style=discord.ButtonStyle.success, label="テンプレートを作成")
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MODE_CREATE_NEW,
-            interaction,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MODE_CREATE_NEW,
+                interaction,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class DeleteTemplateButton(discord.ui.Button):
+class DeleteTemplateButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext, *, disabled: bool = False):
         super().__init__(
             style=discord.ButtonStyle.danger,
@@ -203,14 +251,21 @@ class DeleteTemplateButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MODE_DELETE_TEMPLATE,
-            interaction,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MODE_DELETE_TEMPLATE,
+                interaction,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class BackToTemplateSelectButton(discord.ui.Button):
+class BackToTemplateSelectButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(
             style=discord.ButtonStyle.secondary, label="テンプレート一覧に戻る"
@@ -219,14 +274,21 @@ class BackToTemplateSelectButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MODE_USE_EXISTING,
-            interaction,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MODE_USE_EXISTING,
+                interaction,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class UseSharedTemplateButton(discord.ui.Button):
+class UseSharedTemplateButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext, template: Template):
         super().__init__(style=discord.ButtonStyle.primary, label="このテンプレートを使う")
         self.context = context
@@ -234,14 +296,22 @@ class UseSharedTemplateButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.TEMPLATE_DETERMINED,
-            self.template,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.TEMPLATE_DETERMINED,
+                self.template,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class CopySharedTemplateButton(discord.ui.Button):
+class CopySharedTemplateButton(DisableViewOnCallbackMixin, discord.ui.Button):
+    disable_on_success = True
+    disable_entire_view = False
+
     def __init__(self, context: CommandContext, template: Template):
         super().__init__(
             style=discord.ButtonStyle.secondary, label="自分用にコピー"
@@ -252,8 +322,13 @@ class CopySharedTemplateButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
         await interaction.response.defer(ephemeral=True)
-        await flow.dispatch(
-            AmidakujiState.SHARED_TEMPLATE_COPY_REQUESTED,
-            self.template,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.SHARED_TEMPLATE_COPY_REQUESTED,
+                self.template,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)

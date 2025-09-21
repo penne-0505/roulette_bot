@@ -9,6 +9,7 @@ import discord
 from models.context_model import CommandContext
 from models.model import Template
 from models.state_model import AmidakujiState
+from components.mixins import DisableViewOnCallbackMixin
 
 if TYPE_CHECKING:
     from db_manager import DBManager
@@ -59,7 +60,9 @@ class _TemplateSelectBase(discord.ui.Select):
         return template
 
 
-class TemplateSelect(_TemplateSelectBase):
+class TemplateSelect(DisableViewOnCallbackMixin, _TemplateSelectBase):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(
             context,
@@ -70,14 +73,21 @@ class TemplateSelect(_TemplateSelectBase):
     async def callback(self, interaction: discord.Interaction):
         selected_template = self._resolve_template()
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.TEMPLATE_DETERMINED,
-            selected_template,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.TEMPLATE_DETERMINED,
+                selected_template,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class SharedTemplateSelect(_TemplateSelectBase):
+class SharedTemplateSelect(DisableViewOnCallbackMixin, _TemplateSelectBase):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(
             context,
@@ -89,14 +99,21 @@ class SharedTemplateSelect(_TemplateSelectBase):
         template = self._resolve_template()
         flow = _get_flow(self.context)
         await interaction.response.defer(ephemeral=True)
-        await flow.dispatch(
-            AmidakujiState.SHARED_TEMPLATE_SELECTED,
-            template,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.SHARED_TEMPLATE_SELECTED,
+                template,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class PublicTemplateSelect(_TemplateSelectBase):
+class PublicTemplateSelect(DisableViewOnCallbackMixin, _TemplateSelectBase):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(
             context,
@@ -108,14 +125,21 @@ class PublicTemplateSelect(_TemplateSelectBase):
         template = self._resolve_template()
         flow = _get_flow(self.context)
         await interaction.response.defer(ephemeral=True)
-        await flow.dispatch(
-            AmidakujiState.SHARED_TEMPLATE_SELECTED,
-            template,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.SHARED_TEMPLATE_SELECTED,
+                template,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
-class TemplateDeleteSelect(discord.ui.Select):
+class TemplateDeleteSelect(DisableViewOnCallbackMixin, discord.ui.Select):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext, templates: list[Template]):
         if not templates:
             raise ValueError("Templates must not be empty")
@@ -129,11 +153,16 @@ class TemplateDeleteSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         selected_template_title = self.values[0]
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.TEMPLATE_DELETED,
-            selected_template_title,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.TEMPLATE_DELETED,
+                selected_template_title,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
 
 
 class OptionManageSelect(discord.ui.Select):
@@ -195,7 +224,9 @@ def remove_bots(users: Iterable[T]) -> list[T]:
     return [user for user in users if not getattr(user, "bot", False)]
 
 
-class MemberSelect(discord.ui.UserSelect):
+class MemberSelect(DisableViewOnCallbackMixin, discord.ui.UserSelect):
+    disable_on_success = True
+
     def __init__(self, context: CommandContext):
         super().__init__(
             placeholder="あみだくじに参加するメンバーを選択してください",
@@ -221,8 +252,13 @@ class MemberSelect(discord.ui.UserSelect):
         result = remove_bots([user for user in result if user is not None])
 
         flow = _get_flow(self.context)
-        await flow.dispatch(
-            AmidakujiState.MEMBER_SELECTED,
-            result,
-            interaction,
-        )
+        try:
+            await flow.dispatch(
+                AmidakujiState.MEMBER_SELECTED,
+                result,
+                interaction,
+            )
+        except Exception:
+            raise
+        else:
+            await self._cleanup_after_callback(interaction)
