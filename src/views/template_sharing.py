@@ -256,7 +256,12 @@ class _SharingTemplateSelect(discord.ui.Select):
             source = {}
 
         if not source:
-            self.options = []
+            self.options = [
+                discord.SelectOption(
+                    label="選択可能なテンプレートがありません",
+                    value="_DISABLED_",
+                )
+            ]
             self.disabled = True
             return
 
