@@ -9,7 +9,15 @@ from db_manager import (
     SharedTemplateRepository,
     REQUIRED_COLLECTIONS,
 )
-from models.model import Pair, PairList, SelectionMode, Template, TemplateScope, UserInfo
+from models.model import (
+    Pair,
+    PairList,
+    ResultEmbedMode,
+    SelectionMode,
+    Template,
+    TemplateScope,
+    UserInfo,
+)
 
 def test_get_embed_mode_initializes_missing_document():
     utils.Singleton._instances.pop(DBManager, None)
@@ -31,6 +39,28 @@ def test_get_embed_mode_initializes_missing_document():
     assert mode == "compact"
     mock_info_repository.create_document.assert_called_once_with(
         "embed_mode", {"embed_mode": "compact"}
+    )
+
+
+def test_set_embed_mode_updates_document():
+    utils.Singleton._instances.pop(DBManager, None)
+    manager = DBManager.get_instance()
+
+    mock_info_repository = MagicMock()
+    mock_info_repository.read_document.return_value = {"embed_mode": "compact"}
+
+    manager.info_repository = mock_info_repository
+    manager.user_repository = object()
+    manager.history_repository = MagicMock()
+    manager.db = object()
+
+    try:
+        manager.set_embed_mode(ResultEmbedMode.DETAILED)
+    finally:
+        utils.Singleton._instances.pop(DBManager, None)
+
+    mock_info_repository.create_document.assert_called_once_with(
+        "embed_mode", {"embed_mode": "detailed"}
     )
 
 

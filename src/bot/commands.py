@@ -13,8 +13,12 @@ from discord.app_commands import locale_str
 from data_interface import FlowController
 from db_manager import DBManager
 from models.context_model import CommandContext
-from models.model import SelectionMode, Template, TemplateScope
+from models.model import ResultEmbedMode, SelectionMode, Template, TemplateScope
 from models.state_model import AmidakujiState
+from views.embed_mode import (
+    EmbedModeView,
+    create_embed_mode_overview_embed,
+)
 from views.selection_mode import (
     SelectionModeView,
     create_selection_mode_overview_embed,
@@ -197,18 +201,24 @@ def register_commands(client: "BotClient") -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         db_manager = require_db_manager(interaction)
+        raw_mode = db_manager.get_embed_mode()
+        try:
+            current_mode = ResultEmbedMode(str(raw_mode))
+        except ValueError:  # pragma: no cover - 不正値は初期値へフォールバック
+            current_mode = ResultEmbedMode.COMPACT
 
-        db_manager.toggle_embed_mode()
-
-        current_mode = db_manager.get_embed_mode()
-
-        embed = discord.Embed(
-            title="埋め込みメッセージの表示形式を変更しました",
-            description=f"現在の表示形式: {current_mode}",
-            color=discord.Color.green(),
+        embed = create_embed_mode_overview_embed(current_mode)
+        view = EmbedModeView(
+            db_manager=db_manager,
+            current_mode=current_mode,
+            user_id=interaction.user.id,
         )
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(
+            embed=embed,
+            view=view,
+            ephemeral=True,
+        )
 
     def _merge_templates(*template_lists: Iterable[Template]) -> list[Template]:
         merged: list[Template] = []

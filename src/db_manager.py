@@ -26,6 +26,7 @@ from db.serializers import (
 
 from models.model import (
     AssignmentHistory,
+    ResultEmbedMode,
     SelectionMode,
     Template,
     TemplateScope,
@@ -152,6 +153,16 @@ class DBManager(metaclass=utils.Singleton):
             return SelectionMode(normalized)
         except ValueError as exc:  # pragma: no cover - defensive guard
             raise ValueError("Invalid selection mode") from exc
+
+    @staticmethod
+    def _coerce_embed_mode(value: ResultEmbedMode | str) -> ResultEmbedMode:
+        if isinstance(value, ResultEmbedMode):
+            return value
+        normalized = str(value).lower()
+        try:
+            return ResultEmbedMode(normalized)
+        except ValueError as exc:  # pragma: no cover - defensive guard
+            raise ValueError("Invalid embed mode") from exc
 
     def _get_history_repository(self) -> HistoryRepository:
         self._ensure_configured()
@@ -282,6 +293,13 @@ class DBManager(metaclass=utils.Singleton):
         info_repository = self._get_info_repository()
         data, _ = self._read_or_initialize_embed_mode(info_repository)
         return data["embed_mode"]
+
+    def set_embed_mode(self, mode: ResultEmbedMode | str) -> None:
+        embed_mode = self._coerce_embed_mode(mode)
+        info_repository = self._get_info_repository()
+        data, _ = self._read_or_initialize_embed_mode(info_repository)
+        data["embed_mode"] = embed_mode.value
+        info_repository.create_document("embed_mode", data)
 
     def set_selection_mode(self, mode: SelectionMode | str) -> None:
         selection_mode = self._coerce_selection_mode(mode)
