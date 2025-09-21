@@ -233,7 +233,6 @@ class TemplateManagementView(discord.ui.View):
 class _TemplateSelect(discord.ui.Select):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(placeholder="テンプレートを選択してください", min_values=1, max_values=1)
-        self.view = view
 
     def refresh(self, options: List[discord.SelectOption]) -> None:
         self.options = options
@@ -255,7 +254,6 @@ class _TemplateOptionSelect(discord.ui.Select):
             min_values=1,
             max_values=1,
         )
-        self.view = view
         self.disabled = True
 
     def set_session(self, session: Optional[TemplateEditSession]) -> None:
@@ -295,7 +293,6 @@ class _TemplateOptionSelect(discord.ui.Select):
 class _RenameTitleButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.primary, label="タイトルを変更")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -309,7 +306,6 @@ class _RenameTitleButton(discord.ui.Button):
 class _AddOptionButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.primary, label="候補を追加")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -323,7 +319,6 @@ class _AddOptionButton(discord.ui.Button):
 class _RenameOptionButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.secondary, label="候補をリネーム")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         session = self.view.session
@@ -338,7 +333,6 @@ class _RenameOptionButton(discord.ui.Button):
 class _DeleteOptionButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.danger, label="候補を削除")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         session = self.view.session
@@ -353,7 +347,6 @@ class _DeleteOptionButton(discord.ui.Button):
 class _SaveButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.success, label="変更を保存")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -367,7 +360,6 @@ class _SaveButton(discord.ui.Button):
 class _DiscardButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.secondary, label="変更を破棄")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -386,7 +378,6 @@ class _DiscardButton(discord.ui.Button):
 class _DeleteTemplateButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.danger, label="テンプレートを削除")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -400,7 +391,6 @@ class _DeleteTemplateButton(discord.ui.Button):
 class _CloseButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(style=discord.ButtonStyle.secondary, label="閉じる")
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
         for child in self.view.children:
@@ -412,7 +402,7 @@ class _CloseButton(discord.ui.Button):
 class _RenameTitleModal(discord.ui.Modal):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(title="テンプレート名の編集", timeout=300)
-        self.view = view
+        self.template_view = view
         session = view.session
         default = session.title if session else ""
         self.title_input = discord.ui.TextInput(
@@ -424,19 +414,19 @@ class _RenameTitleModal(discord.ui.Modal):
         self.add_item(self.title_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        if self.view.session is None:
+        if self.template_view.session is None:
             await interaction.response.send_message("テンプレートが選択されていません。", ephemeral=True)
             return
 
         new_title = self.title_input.value.strip()
-        self.view.session.title = new_title
-        await self.view.render(interaction, status_message="タイトルを更新しました。")
+        self.template_view.session.title = new_title
+        await self.template_view.render(interaction, status_message="タイトルを更新しました。")
 
 
 class _AddOptionModal(discord.ui.Modal):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(title="候補を追加", timeout=300)
-        self.view = view
+        self.template_view = view
         self.option_input = discord.ui.TextInput(
             label="候補名",
             placeholder="新しい候補を入力",
@@ -446,19 +436,19 @@ class _AddOptionModal(discord.ui.Modal):
         self.add_item(self.option_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        if self.view.session is None:
+        if self.template_view.session is None:
             await interaction.response.send_message("テンプレートが選択されていません。", ephemeral=True)
             return
 
         option_name = self.option_input.value.strip()
-        self.view.session.add_choice(option_name)
-        await self.view.render(interaction, status_message=f"「{option_name}」を追加しました。")
+        self.template_view.session.add_choice(option_name)
+        await self.template_view.render(interaction, status_message=f"「{option_name}」を追加しました。")
 
 
 class _RenameOptionModal(discord.ui.Modal):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(title="候補名の編集", timeout=300)
-        self.view = view
+        self.template_view = view
         session = view.session
         current_value = ""
         if session and session.selected_index is not None:
@@ -472,14 +462,14 @@ class _RenameOptionModal(discord.ui.Modal):
         self.add_item(self.option_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        session = self.view.session
+        session = self.template_view.session
         if session is None or session.selected_index is None:
             await interaction.response.send_message("候補が選択されていません。", ephemeral=True)
             return
 
         new_value = self.option_input.value.strip()
         session.rename_choice(new_value)
-        await self.view.render(
+        await self.template_view.render(
             interaction,
             status_message=f"候補を「{new_value}」に更新しました。",
         )
@@ -488,7 +478,7 @@ class _RenameOptionModal(discord.ui.Modal):
 class _DeleteTemplateModal(discord.ui.Modal):
     def __init__(self, view: TemplateManagementView) -> None:
         super().__init__(title="テンプレート削除の確認", timeout=300)
-        self.view = view
+        self.template_view = view
         self.confirm_input = discord.ui.TextInput(
             label="確認キーワード",
             placeholder="削除と入力してください",
@@ -498,7 +488,7 @@ class _DeleteTemplateModal(discord.ui.Modal):
         self.add_item(self.confirm_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        if self.view.session is None:
+        if self.template_view.session is None:
             await interaction.response.send_message("テンプレートが選択されていません。", ephemeral=True)
             return
 
@@ -506,5 +496,5 @@ class _DeleteTemplateModal(discord.ui.Modal):
             await interaction.response.send_message("確認キーワードが一致しません。", ephemeral=True)
             return
 
-        message = await self.view.delete_current_template(interaction)
-        await self.view.render(interaction, status_message=message)
+        message = await self.template_view.delete_current_template(interaction)
+        await self.template_view.render(interaction, status_message=message)
