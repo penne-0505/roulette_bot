@@ -135,12 +135,13 @@ class TemplateManagementView(discord.ui.View):
     def _update_component_states(self) -> None:
         has_template = self.session is not None
         has_options = bool(self.session and self.session.choices)
+        has_selected_option = bool(self.session and self.session.selected_index is not None)
         self.template_select.disabled = not self.templates
         self.option_select.set_session(self.session)
         self.rename_title_button.disabled = not has_template
         self.add_option_button.disabled = not has_template
-        self.rename_option_button.disabled = not has_options
-        self.delete_option_button.disabled = not has_options
+        self.rename_option_button.disabled = not has_selected_option
+        self.delete_option_button.disabled = not has_selected_option
         self.save_button.disabled = not (has_template and self.session and self.session.changed)
         self.discard_button.disabled = not (has_template and self.session and self.session.changed)
         self.delete_template_button.disabled = not has_template
@@ -245,6 +246,7 @@ class _TemplateSelect(discord.ui.Select):
             ],
             disabled=True,
             required=False,
+            row=0,
         )
 
     def refresh(self, options: List[discord.SelectOption]) -> None:
@@ -286,6 +288,7 @@ class _TemplateOptionSelect(discord.ui.Select):
             ],
             disabled=True,
             required=False,
+            row=1,
         )
 
     def set_session(self, session: Optional[TemplateEditSession]) -> None:
@@ -330,7 +333,7 @@ class _TemplateOptionSelect(discord.ui.Select):
 
 class _RenameTitleButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.primary, label="タイトルを変更")
+        super().__init__(style=discord.ButtonStyle.primary, label="タイトルを変更", row=2)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -343,7 +346,7 @@ class _RenameTitleButton(discord.ui.Button):
 
 class _AddOptionButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.primary, label="候補を追加")
+        super().__init__(style=discord.ButtonStyle.primary, label="候補を追加", row=2)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -356,7 +359,7 @@ class _AddOptionButton(discord.ui.Button):
 
 class _RenameOptionButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.secondary, label="候補をリネーム")
+        super().__init__(style=discord.ButtonStyle.secondary, label="候補をリネーム", row=3)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         session = self.view.session
@@ -370,7 +373,7 @@ class _RenameOptionButton(discord.ui.Button):
 
 class _DeleteOptionButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.danger, label="候補を削除")
+        super().__init__(style=discord.ButtonStyle.danger, label="候補を削除", row=3)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         session = self.view.session
@@ -384,7 +387,7 @@ class _DeleteOptionButton(discord.ui.Button):
 
 class _SaveButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.success, label="変更を保存")
+        super().__init__(style=discord.ButtonStyle.success, label="変更を保存", row=4)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -397,7 +400,7 @@ class _SaveButton(discord.ui.Button):
 
 class _DiscardButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.secondary, label="変更を破棄")
+        super().__init__(style=discord.ButtonStyle.secondary, label="変更を破棄", row=4)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -415,7 +418,7 @@ class _DiscardButton(discord.ui.Button):
 
 class _DeleteTemplateButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.danger, label="テンプレートを削除")
+        super().__init__(style=discord.ButtonStyle.danger, label="テンプレートを削除", row=2)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.view.session is None:
@@ -428,7 +431,7 @@ class _DeleteTemplateButton(discord.ui.Button):
 
 class _CloseButton(discord.ui.Button):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(style=discord.ButtonStyle.secondary, label="閉じる")
+        super().__init__(style=discord.ButtonStyle.secondary, label="閉じる", row=4)
 
     async def callback(self, interaction: discord.Interaction) -> None:
         for child in self.view.children:
