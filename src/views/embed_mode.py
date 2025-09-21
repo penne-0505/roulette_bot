@@ -58,8 +58,8 @@ class EmbedModeView(discord.ui.View):
         self.current_mode = current_mode
         self.user_id = user_id
 
-        self.add_item(_EmbedModeChangeButton(view=self))
-        self.add_item(_EmbedModeCancelButton(view=self))
+        self.add_item(_EmbedModeChangeButton())
+        self.add_item(_EmbedModeCancelButton())
 
     def disable_all_items(self) -> None:
         disable_all = getattr(super(), "disable_all_items", None)
@@ -88,33 +88,33 @@ class EmbedModeView(discord.ui.View):
 
 
 class _EmbedModeChangeButton(discord.ui.Button):
-    def __init__(self, *, view: EmbedModeView):
+    def __init__(self) -> None:
         super().__init__(label="変更する", style=discord.ButtonStyle.primary)
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, EmbedModeView)
-        new_mode = self.view._toggle_mode()
-        self.view.db_manager.set_embed_mode(new_mode)
-        self.view.current_mode = new_mode
-        self.view.disable_all_items()
-        self.view.stop()
+        view = self.view
+        assert isinstance(view, EmbedModeView)
+        new_mode = view._toggle_mode()
+        view.db_manager.set_embed_mode(new_mode)
+        view.current_mode = new_mode
+        view.disable_all_items()
+        view.stop()
         await interaction.response.edit_message(
             embed=create_embed_mode_changed_embed(new_mode),
-            view=self.view,
+            view=view,
         )
 
 
 class _EmbedModeCancelButton(discord.ui.Button):
-    def __init__(self, *, view: EmbedModeView):
+    def __init__(self) -> None:
         super().__init__(label="キャンセル", style=discord.ButtonStyle.secondary)
-        self.view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, EmbedModeView)
-        self.view.disable_all_items()
-        self.view.stop()
+        view = self.view
+        assert isinstance(view, EmbedModeView)
+        view.disable_all_items()
+        view.stop()
         await interaction.response.edit_message(
-            embed=create_embed_mode_cancelled_embed(self.view.current_mode),
-            view=self.view,
+            embed=create_embed_mode_cancelled_embed(view.current_mode),
+            view=view,
         )
