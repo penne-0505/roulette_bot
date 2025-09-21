@@ -120,5 +120,5 @@ class _SelectionModeCancelButton(discord.ui.Button):
         view.stop()
         await interaction.response.edit_message(
             embed=create_selection_mode_cancelled_embed(view.current_mode),
-            view=view,
+            view=None,
         )
