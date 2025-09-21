@@ -313,21 +313,19 @@ def register_commands(client: "BotClient") -> None:
     )
     async def command_amidakuji_history(
         interaction: discord.Interaction,
-        limit: int = 5,
-        template_title: str | None = None,
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         db_manager = require_db_manager(interaction)
 
-        limit = max(1, min(10, limit))
+        limit = 5
         guild_id = interaction.guild_id or 0
 
         view = HistoryListView(
             db_manager=db_manager,
             guild_id=guild_id,
             page_size=limit,
-            template_title=template_title,
+            template_title=None,
         )
 
         embed = view.create_embed()
