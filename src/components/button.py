@@ -248,6 +248,7 @@ class CopySharedTemplateButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         flow = _get_flow(self.context)
+        await interaction.response.defer(ephemeral=True)
         await flow.dispatch(
             AmidakujiState.SHARED_TEMPLATE_COPY_REQUESTED,
             self.template,

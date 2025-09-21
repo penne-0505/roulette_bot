@@ -88,6 +88,7 @@ class SharedTemplateSelect(_TemplateSelectBase):
     async def callback(self, interaction: discord.Interaction):
         template = self._resolve_template()
         flow = _get_flow(self.context)
+        await interaction.response.defer(ephemeral=True)
         await flow.dispatch(
             AmidakujiState.SHARED_TEMPLATE_SELECTED,
             template,
@@ -106,6 +107,7 @@ class PublicTemplateSelect(_TemplateSelectBase):
     async def callback(self, interaction: discord.Interaction):
         template = self._resolve_template()
         flow = _get_flow(self.context)
+        await interaction.response.defer(ephemeral=True)
         await flow.dispatch(
             AmidakujiState.SHARED_TEMPLATE_SELECTED,
             template,
