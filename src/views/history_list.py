@@ -386,11 +386,24 @@ class _TemplateFilterSelect(discord.ui.Select):
                     ),
                 )
             )
-        self.options = options
-        self.disabled = not options
+        if options:
+            self.options = options
+            self.disabled = False
+        else:
+            self.options = [
+                discord.SelectOption(
+                    label="利用可能なテンプレートがありません",
+                    value="__no_templates__",
+                    description="共有テンプレートや履歴が存在しません",
+                )
+            ]
+            self.disabled = True
 
     async def callback(self, interaction: discord.Interaction) -> None:
         value = self.values[0]
+        if value == "__no_templates__":
+            await interaction.response.defer(ephemeral=True)
+            return
         history_view = self._history_view
         history_view.apply_template_filter(value, strict=True)
         await history_view.render(interaction)
