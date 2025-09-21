@@ -322,14 +322,12 @@ class TemplateListView(discord.ui.View):
 
     async def close(self, interaction: discord.Interaction) -> None:
         self.stop()
-        for child in self.children:
-            child.disabled = True
-        embed = self.create_embed()
-        embed.set_footer(text="表示を終了しました。")
-        if interaction.response.is_done():
-            await interaction.edit_original_response(embed=embed, view=self)
-        else:
-            await interaction.response.edit_message(embed=embed, view=self)
+        editor = (
+            interaction.edit_original_response
+            if interaction.response.is_done()
+            else interaction.response.edit_message
+        )
+        await editor(embed=None, view=None)
 
     async def on_timeout(self) -> None:
         for child in self.children:
