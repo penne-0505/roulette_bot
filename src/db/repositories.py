@@ -1,12 +1,14 @@
 """Firestore向けのリポジトリクラス群。"""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from firebase_admin import firestore
+from google.api_core import exceptions as google_exceptions
 
 from .constants import COLLECTION_SENTINEL_DOCUMENT_ID
+from .serializers import ensure_datetime
 
 FirestoreClient = firestore.firestore.Client
 CollectionReference = firestore.CollectionReference
@@ -131,23 +133,53 @@ class HistoryRepository(FirestoreRepository):
         limit: int = 10,
         since: datetime | None = None,
     ) -> list[dict]:
-        query: Query = self.ref.where("guild_id", "==", guild_id)
+        if since is not None and since.tzinfo is None:
+            since = since.replace(tzinfo=timezone.utc)
+
+        base_query: Query = self.ref.where("guild_id", "==", guild_id)
+
+        query: Query = base_query
         if since is not None:
             query = query.where("created_at", ">=", since)
         query = query.order_by("created_at", direction=firestore.Query.DESCENDING)
-
         if template_title is None and limit:
             query = query.limit(limit)
 
-        results: list[dict] = []
-        for document in query.stream():
-            data = document.to_dict()
+        try:
+            snapshots = list(query.stream())
+        except google_exceptions.FailedPrecondition:
+            snapshots = list(base_query.stream())
+
+        def _normalize_created_at(value: Any) -> datetime | None:
+            normalized = ensure_datetime(value)
+            if normalized is None:
+                return None
+            if normalized.tzinfo is None:
+                return normalized.replace(tzinfo=timezone.utc)
+            return normalized
+
+        filtered: list[tuple[datetime | None, dict]] = []
+        for snapshot in snapshots:
+            data = snapshot.to_dict()
+            if not isinstance(data, dict):
+                continue
+            created_at_value = data.get("created_at")
+            created_at_dt = _normalize_created_at(created_at_value)
+            if since is not None and created_at_dt is not None and created_at_dt < since:
+                continue
             if template_title is not None and data.get("template_title") != template_title:
                 continue
-            results.append(data)
-            if limit and len(results) >= limit:
-                break
-        return results
+            filtered.append((created_at_dt, data))
+
+        filtered.sort(
+            key=lambda item: item[0] or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+
+        if limit:
+            filtered = filtered[:limit]
+
+        return [data for _, data in filtered]
 
 
 __all__ = [
