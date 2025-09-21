@@ -483,15 +483,16 @@ class DBManager:
 
     def user_is_exist(self, user_id: int) -> bool:
         try:
-            user = self.get_user(user_id)
-            return user is not None
+            repository = self._get_user_repository()
+        except Exception:
+            return False
+
+        try:
+            return repository.read_document(user_id) is not None
         except Exception:
             return False
 
     def add_custom_template(self, user_id: int, template: Template) -> None:
-        if not self.user_is_exist(user_id):
-            raise ValueError("User not found")
-
         user = self.get_user(user_id, include_shared=False)
         if user is None:
             raise ValueError("User not found")
@@ -500,9 +501,6 @@ class DBManager:
         self.set_user(user)
 
     def update_custom_template(self, user_id: int, template: Template) -> None:
-        if not self.user_is_exist(user_id):
-            raise ValueError("User not found")
-
         if not template.template_id:
             raise ValueError("Template id is required")
 
@@ -533,9 +531,6 @@ class DBManager:
         template_id: str | None = None,
         template_title: str | None = None,
     ) -> None:
-        if not self.user_is_exist(user_id):
-            raise ValueError("User not found")
-
         user = self.get_user(user_id, include_shared=False)
         if user is None:
             raise ValueError("User not found")
@@ -555,9 +550,6 @@ class DBManager:
         self.set_user(user)
 
     def set_least_template(self, user_id: int, template: Template) -> None:
-        if not self.user_is_exist(user_id):
-            raise ValueError("User not found")
-
         user = self.get_user(user_id, include_shared=False)
         if user is None:
             raise ValueError("User not found")
@@ -580,7 +572,10 @@ class DBManager:
         if template.scope == TemplateScope.PRIVATE:
             raise ValueError("Cannot copy private template as shared")
         user = self.get_user(user_id, include_shared=False)
-        existing_titles = {t.title for t in user.custom_templates} if user else set()
+        if user is None:
+            raise ValueError("User not found")
+
+        existing_titles = {t.title for t in user.custom_templates}
         base_title = template.title
         new_title = base_title
         counter = 1
@@ -590,7 +585,8 @@ class DBManager:
 
         template_with_title = replace(template, title=new_title)
         new_template = normalize_template_for_user(template_with_title, user_id)
-        self.add_custom_template(user_id, new_template)
+        user.custom_templates.append(new_template)
+        self.set_user(user)
         return new_template
 
 

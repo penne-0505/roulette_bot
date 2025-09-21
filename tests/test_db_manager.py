@@ -256,7 +256,7 @@ def test_copy_shared_template_to_user_generates_unique_title():
     user = UserInfo(id=1, name="Tester", custom_templates=[existing_template])
 
     manager.get_user = MagicMock(return_value=user)
-    manager.add_custom_template = MagicMock()
+    manager.set_user = MagicMock()
     manager.history_repository = MagicMock()
 
     shared_template = Template(
@@ -270,11 +270,9 @@ def test_copy_shared_template_to_user_generates_unique_title():
     finally:
         reset_manager()
 
-    manager.add_custom_template.assert_called_once()
-    args, _ = manager.add_custom_template.call_args
-    assert args[0] == 1
-    copied_template = args[1]
-    assert copied_template.title == "Guild Shared (2)"
+    manager.set_user.assert_called_once_with(user)
+    appended_template = user.custom_templates[-1]
+    assert appended_template.title == "Guild Shared (2)"
     assert copied.title == "Guild Shared (2)"
 
 def test_get_selection_mode_initializes_missing_document():
