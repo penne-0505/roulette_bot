@@ -235,7 +235,18 @@ class _TemplateSelect(discord.ui.Select):
         super().__init__(placeholder="テンプレートを選択してください", min_values=1, max_values=1)
 
     def refresh(self, options: List[discord.SelectOption]) -> None:
-        self.options = options
+        if options:
+            self.options = options
+            self.disabled = False
+        else:
+            self.options = [
+                discord.SelectOption(
+                    label="テンプレートがありません",
+                    value="__placeholder__",
+                    description=None,
+                )
+            ]
+            self.disabled = True
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if not self.view.templates:
@@ -258,7 +269,13 @@ class _TemplateOptionSelect(discord.ui.Select):
 
     def set_session(self, session: Optional[TemplateEditSession]) -> None:
         if session is None or not session.choices:
-            self.options = []
+            self.options = [
+                discord.SelectOption(
+                    label="候補がありません",
+                    value="__placeholder__",
+                    description=None,
+                )
+            ]
             self.disabled = True
             return
 
