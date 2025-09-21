@@ -15,6 +15,10 @@ from db_manager import DBManager
 from models.context_model import CommandContext
 from models.model import SelectionMode, Template, TemplateScope
 from models.state_model import AmidakujiState
+from views.selection_mode import (
+    SelectionModeView,
+    create_selection_mode_overview_embed,
+)
 from views.template_management import TemplateManagementView
 from views.template_sharing import TemplateSharingView
 from views.view import ModeSelectionView
@@ -208,38 +212,34 @@ def register_commands(client: "BotClient") -> None:
         name=locale_str("amidakuji_selection_mode"),
         description="抽選のアルゴリズムを切り替えます。",
     )
-    @discord.app_commands.describe(mode="抽選モードを選択します。")
-    @discord.app_commands.choices(
-        mode=[
-            discord.app_commands.Choice(
-                name="完全ランダム", value=SelectionMode.RANDOM.value
-            ),
-            discord.app_commands.Choice(
-                name="偏り軽減", value=SelectionMode.BIAS_REDUCTION.value
-            ),
-        ]
-    )
     async def command_set_selection_mode(
-        interaction: discord.Interaction, mode: discord.app_commands.Choice[str]
+        interaction: discord.Interaction,
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         db_manager = require_db_manager(interaction)
 
-        try:
-            selection_mode = SelectionMode(mode.value)
-        except ValueError as error:  # pragma: no cover - バリデーション用
-            raise RuntimeError("Invalid selection mode") from error
+        raw_mode = db_manager.get_selection_mode()
+        if isinstance(raw_mode, SelectionMode):
+            current_mode = raw_mode
+        else:
+            try:
+                current_mode = SelectionMode(str(raw_mode))
+            except ValueError:  # pragma: no cover - 不正値は初期値へフォールバック
+                current_mode = SelectionMode.RANDOM
 
-        db_manager.set_selection_mode(selection_mode)
-
-        embed = discord.Embed(
-            title="抽選モードを更新しました",
-            description=f"現在のモード: {mode.name}",
-            color=discord.Color.green(),
+        embed = create_selection_mode_overview_embed(current_mode)
+        view = SelectionModeView(
+            db_manager=db_manager,
+            current_mode=current_mode,
+            user_id=interaction.user.id,
         )
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(
+            embed=embed,
+            view=view,
+            ephemeral=True,
+        )
 
     @tree.command(
         name=locale_str("amidakuji_history"),
