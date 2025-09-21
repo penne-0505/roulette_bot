@@ -88,7 +88,7 @@ def register_commands(client: "BotClient") -> None:
             inline=False,
         )
 
-        uptime_s = time.time() - client.start_time
+        uptime_s = round(time.time() - client.start_time, 2)
         uptime_m = int(uptime_s / 60)
         uptime_h = int(uptime_m / 60)
 
