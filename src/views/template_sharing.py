@@ -213,6 +213,12 @@ class TemplateSharingView(discord.ui.View):
             scope=TemplateScope.GUILD,
             guild_id=self.guild_id,
         )
+        if self._has_duplicate_shared_template(
+            template=template,
+            existing_templates=existing,
+            scope=TemplateScope.GUILD,
+        ):
+            return "すでに共有されています。"
         existing_titles = {item.title for item in existing}
         new_title, renamed = self._resolve_title(template.title, existing_titles)
         shared_template = Template(
@@ -235,6 +241,12 @@ class TemplateSharingView(discord.ui.View):
             return "テンプレートが見つかりません。"
 
         existing = self.db_manager.list_shared_templates(scope=TemplateScope.PUBLIC)
+        if self._has_duplicate_shared_template(
+            template=template,
+            existing_templates=existing,
+            scope=TemplateScope.PUBLIC,
+        ):
+            return "すでに共有されています。"
         existing_titles = {item.title for item in existing}
         new_title, renamed = self._resolve_title(template.title, existing_titles)
         shared_template = Template(
@@ -283,6 +295,32 @@ class TemplateSharingView(discord.ui.View):
             if candidate not in existing_titles:
                 return candidate, True
             counter += 1
+
+    def _has_duplicate_shared_template(
+        self,
+        *,
+        template: Template,
+        existing_templates: Iterable[Template],
+        scope: TemplateScope,
+    ) -> bool:
+        """同一ユーザーが同内容のテンプレートを既に共有済みか判定する。"""
+
+        def is_same_template(shared: Template) -> bool:
+            if shared.created_by != self.user_id:
+                return False
+            if shared.scope != scope:
+                return False
+            if scope is TemplateScope.GUILD and shared.guild_id != self.guild_id:
+                return False
+            if list(shared.choices) != list(template.choices):
+                return False
+            if shared.title == template.title:
+                return True
+            if shared.title.startswith(f"{template.title} ("):
+                return True
+            return False
+
+        return any(is_same_template(shared) for shared in existing_templates)
 
 
 class _SharingTemplateSelect(discord.ui.Select):
