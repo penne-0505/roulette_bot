@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "roulette-ds-bot"
 version = "0.1.0"
-description = ""
+description = "Discord bot that manages amidakuji templates and assignments."
 authors = ["penne <penne0505pp@gmail.com>"]
 readme = "README.md"
 

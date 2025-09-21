@@ -63,8 +63,9 @@ class PairList:
     pairs: list[Pair]
 
 
-# TODO: これはどこに置くべき？
 class ResultEmbedMode(Enum):
+    """結果埋め込みの表示モード。"""
+
     COMPACT = "compact"
     DETAILED = "detailed"
 
