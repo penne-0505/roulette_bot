@@ -6,6 +6,7 @@ from typing import Any
 
 from firebase_admin import firestore
 from google.api_core import exceptions as google_exceptions
+from google.cloud.firestore_v1 import FieldFilter
 
 from .constants import COLLECTION_SENTINEL_DOCUMENT_ID
 from .serializers import ensure_datetime
@@ -95,11 +96,11 @@ class SharedTemplateRepository(FirestoreRepository):
     ) -> list[Any]:
         query: Query | CollectionReference = self.ref
         if scope is not None:
-            query = query.where("scope", "==", scope)
+            query = query.where(filter=FieldFilter("scope", "==", scope))
         if guild_id is not None:
-            query = query.where("guild_id", "==", guild_id)
+            query = query.where(filter=FieldFilter("guild_id", "==", guild_id))
         if created_by is not None:
-            query = query.where("created_by", "==", created_by)
+            query = query.where(filter=FieldFilter("created_by", "==", created_by))
 
         documents: list[Any] = []
         for document in query.stream():
@@ -136,11 +137,11 @@ class HistoryRepository(FirestoreRepository):
         if since is not None and since.tzinfo is None:
             since = since.replace(tzinfo=timezone.utc)
 
-        base_query: Query = self.ref.where("guild_id", "==", guild_id)
+        base_query: Query = self.ref.where(filter=FieldFilter("guild_id", "==", guild_id))
 
         query: Query = base_query
         if since is not None:
-            query = query.where("created_at", ">=", since)
+            query = query.where(filter=FieldFilter("created_at", ">=", since))
         query = query.order_by("created_at", direction=firestore.Query.DESCENDING)
         if template_title is None and limit:
             query = query.limit(limit)
