@@ -13,8 +13,10 @@ from discord.app_commands import locale_str
 from data_interface import FlowController
 from db_manager import DBManager
 from models.context_model import CommandContext
-from models.model import SelectionMode
+from models.model import SelectionMode, Template, TemplateScope
 from models.state_model import AmidakujiState
+from views.template_management import TemplateManagementView
+from views.template_sharing import TemplateSharingView
 from views.view import ModeSelectionView
 
 if TYPE_CHECKING:  # pragma: no cover - 型チェック専用
@@ -127,6 +129,39 @@ def register_commands(client: "BotClient") -> None:
         await interaction.followup.send(view=view, ephemeral=True)
 
     @tree.command(
+        name=locale_str("amidakuji_template_manage"),
+        description="テンプレートを編集または削除します。",
+    )
+    async def command_manage_templates(interaction: discord.Interaction) -> None:
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        db_manager = require_db_manager(interaction)
+        user_id = interaction.user.id
+        user = db_manager.get_user(user_id, include_shared=False)
+
+        templates = user.custom_templates if user else []
+        if not templates:
+            embed = discord.Embed(
+                title="テンプレートはまだありません",
+                description="まずは `/amidakuji` からテンプレートを作成してください。",
+                color=discord.Color.orange(),
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        view = TemplateManagementView(
+            db_manager=db_manager,
+            user_id=user_id,
+            templates=templates,
+        )
+
+        await interaction.followup.send(
+            embed=view.create_embed(),
+            view=view,
+            ephemeral=True,
+        )
+
+    @tree.command(
         name=locale_str("toggle_embed_mode"),
         description="Toggle the embed mode of the result of the command.",
     )
@@ -186,7 +221,7 @@ def register_commands(client: "BotClient") -> None:
     @tree.command(
         name=locale_str("amidakuji_history"),
         description="最近の抽選履歴を表示します。",
-    )
+        )
     @discord.app_commands.describe(
         limit="表示件数 (1-10)", template_title="絞り込みたいテンプレート名 (任意)"
     )
@@ -253,6 +288,58 @@ def register_commands(client: "BotClient") -> None:
             embed.set_footer(text=f"テンプレート: {template_title}")
 
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @tree.command(
+        name=locale_str("amidakuji_template_share"),
+        description="テンプレートの共有・公開設定を管理します。",
+    )
+    async def command_share_templates(interaction: discord.Interaction) -> None:
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        db_manager = require_db_manager(interaction)
+        user_id = interaction.user.id
+        user = db_manager.get_user(user_id, include_shared=False)
+        private_templates = user.custom_templates if user else []
+
+        guild_id = interaction.guild_id
+        guild_templates: list[Template] = []
+        if guild_id is not None:
+            guild_templates = db_manager.list_shared_templates(
+                scope=TemplateScope.GUILD,
+                guild_id=guild_id,
+                created_by=user_id,
+            )
+
+        public_templates = db_manager.list_shared_templates(
+            scope=TemplateScope.PUBLIC,
+            created_by=user_id,
+        )
+
+        if not private_templates and not guild_templates and not public_templates:
+            embed = discord.Embed(
+                title="管理できるテンプレートがありません",
+                description="まずは `/amidakuji` からテンプレートを作成または共有してください。",
+                color=discord.Color.orange(),
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        display_name = getattr(interaction.user, "display_name", interaction.user.name)
+        view = TemplateSharingView(
+            db_manager=db_manager,
+            user_id=user_id,
+            display_name=display_name,
+            guild_id=guild_id,
+            private_templates=private_templates,
+            guild_templates=guild_templates,
+            public_templates=public_templates,
+        )
+
+        await interaction.followup.send(
+            embed=view.create_embed(),
+            view=view,
+            ephemeral=True,
+        )
 
 
 __all__ = ["register_commands"]

@@ -12,6 +12,7 @@ from models.model import (
     Template,
     TemplateScope,
 )
+from utils import generate_template_id
 
 
 def ensure_datetime(value: Any) -> datetime | None:
@@ -31,6 +32,9 @@ def ensure_datetime(value: Any) -> datetime | None:
 
 def serialize_template(template: Template) -> dict[str, Any]:
     """テンプレートをFirestoreに保存しやすい辞書形式へ変換する。"""
+
+    if not template.template_id:
+        template.template_id = generate_template_id()
 
     updated_at = template.updated_at or datetime.now(UTC)
     if template.updated_at is None:
@@ -68,7 +72,7 @@ def deserialize_template(data: Mapping[str, Any]) -> Template:
         scope = TemplateScope.PRIVATE
 
     updated_at = ensure_datetime(data.get("updated_at"))
-    template_id = data.get("template_id") or data.get("id")
+    template_id = data.get("template_id") or data.get("id") or generate_template_id()
 
     return Template(
         title=data["title"],
@@ -89,7 +93,7 @@ def normalize_template_for_user(template: Template, user_id: int) -> Template:
         scope=TemplateScope.PRIVATE,
         created_by=user_id,
         guild_id=None,
-        template_id=None,
+        template_id=generate_template_id(),
     )
 
 

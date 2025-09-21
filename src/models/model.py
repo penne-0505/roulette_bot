@@ -6,6 +6,7 @@ from enum import Enum
 
 import discord
 
+from utils import generate_template_id
 
 class TemplateScope(Enum):
     """テンプレートの共有範囲を示す列挙体。"""
@@ -24,7 +25,7 @@ class Template:
     scope: TemplateScope = TemplateScope.PRIVATE
     created_by: int | None = None
     guild_id: int | None = None
-    template_id: str | None = None
+    template_id: str = field(default_factory=generate_template_id)
     updated_at: datetime | None = None
 
 

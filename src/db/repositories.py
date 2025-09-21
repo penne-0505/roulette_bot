@@ -69,9 +69,17 @@ class SharedTemplateRepository(FirestoreRepository):
         super().__init__(client, "shared_templates")
 
     def add_template(self, data: dict[str, Any]) -> str:
-        document_ref = self.ref.document()
+        template_id = str(data.get("template_id") or "").strip()
+        document_ref: DocumentReference
+        if template_id:
+            document_ref = self.ref.document(template_id)
+        else:
+            document_ref = self.ref.document()
+            template_id = document_ref.id
+            data["template_id"] = template_id
+
         document_ref.set(data)
-        return document_ref.id
+        return template_id
 
     def delete_template(self, template_id: str) -> None:
         self.document(template_id).delete()
@@ -81,12 +89,15 @@ class SharedTemplateRepository(FirestoreRepository):
         *,
         scope: str | None = None,
         guild_id: int | None = None,
+        created_by: int | None = None,
     ) -> list[Any]:
         query: Query | CollectionReference = self.ref
         if scope is not None:
             query = query.where("scope", "==", scope)
         if guild_id is not None:
             query = query.where("guild_id", "==", guild_id)
+        if created_by is not None:
+            query = query.where("created_by", "==", created_by)
 
         documents: list[Any] = []
         for document in query.stream():
@@ -121,14 +132,22 @@ class HistoryRepository(FirestoreRepository):
         since: datetime | None = None,
     ) -> list[dict]:
         query: Query = self.ref.where("guild_id", "==", guild_id)
-        if template_title is not None:
-            query = query.where("template_title", "==", template_title)
         if since is not None:
             query = query.where("created_at", ">=", since)
         query = query.order_by("created_at", direction=firestore.Query.DESCENDING)
-        if limit:
+
+        if template_title is None and limit:
             query = query.limit(limit)
-        return [doc.to_dict() for doc in query.stream()]
+
+        results: list[dict] = []
+        for document in query.stream():
+            data = document.to_dict()
+            if template_title is not None and data.get("template_title") != template_title:
+                continue
+            results.append(data)
+            if limit and len(results) >= limit:
+                break
+        return results
 
 
 __all__ = [

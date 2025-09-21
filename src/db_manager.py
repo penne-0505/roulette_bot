@@ -221,11 +221,17 @@ class DBManager(metaclass=utils.Singleton):
         *,
         scope: TemplateScope | None = None,
         guild_id: int | None = None,
+        created_by: int | None = None,
     ) -> list[Template]:
         repository = self._get_shared_template_repository()
-        raw_templates = repository.list_templates(
-            scope=scope.value if scope else None, guild_id=guild_id
-        )
+        query_kwargs: dict[str, object | None] = {
+            "scope": scope.value if scope else None,
+            "guild_id": guild_id,
+        }
+        if created_by is not None:
+            query_kwargs["created_by"] = created_by
+
+        raw_templates = repository.list_templates(**query_kwargs)
         templates: list[Template] = []
         for item in raw_templates:
             if not hasattr(item, "to_dict"):
@@ -450,17 +456,58 @@ class DBManager(metaclass=utils.Singleton):
         user.custom_templates.append(updated_template)
         self.set_user(user)
 
-    def delete_custom_template(self, user_id: int, template_title: str) -> None:
+    def update_custom_template(self, user_id: int, template: Template) -> None:
+        if not self.user_is_exist(user_id):
+            raise ValueError("User not found")
+
+        if not template.template_id:
+            raise ValueError("Template id is required")
+
+        user = self.get_user(user_id, include_shared=False)
+        if user is None:
+            raise ValueError("User not found")
+
+        sanitized = replace(
+            template,
+            scope=TemplateScope.PRIVATE,
+            created_by=user_id,
+            guild_id=None,
+        )
+
+        for index, existing in enumerate(user.custom_templates):
+            if existing.template_id == sanitized.template_id:
+                user.custom_templates[index] = sanitized
+                break
+        else:
+            raise ValueError("Template not found")
+
+        self.set_user(user)
+
+    def delete_custom_template(
+        self,
+        user_id: int,
+        *,
+        template_id: str | None = None,
+        template_title: str | None = None,
+    ) -> None:
         if not self.user_is_exist(user_id):
             raise ValueError("User not found")
 
         user = self.get_user(user_id, include_shared=False)
         if user is None:
             raise ValueError("User not found")
+        if template_id is None and template_title is None:
+            raise ValueError("Template identifier is required")
+
+        def should_keep(template: Template) -> bool:
+            if template_id is not None and template.template_id == template_id:
+                return False
+            if template_title is not None and template.title == template_title:
+                return False
+            return True
+
         user.custom_templates = [
-            template
-            for template in user.custom_templates
-            if template.title != template_title
+            template for template in user.custom_templates if should_keep(template)
         ]
         self.set_user(user)
 
