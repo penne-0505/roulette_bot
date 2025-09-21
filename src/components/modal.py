@@ -36,7 +36,7 @@ class TitleEnterModal(discord.ui.Modal):
 
 class OptionNameEnterModal(discord.ui.Modal):
     option_name_input = discord.ui.TextInput(
-        placeholder="名前を入力してください",
+        placeholder="オプション名を入力してください",
         label="オプション",
         style=discord.TextStyle.short,
         min_length=1,
