@@ -48,7 +48,7 @@ class UseExistingHandler(BaseStateHandler):
                 title="テンプレートが見つかりません",
                 description=(
                     "まずは `/amidakuji_template_create` でテンプレートを作成するか、"
-                    "共有テンプレートを利用してください。"
+                    "共有/公開テンプレートを利用してください。"
                 ),
                 color=discord.Color.orange(),
             )
@@ -68,7 +68,7 @@ class DeleteTemplateModeHandler(BaseStateHandler):
 
         if not templates:
             return build_ephemeral_embed_action(
-                title="エラーが発生しました🥲",
+                title="エラーが発生しました",
                 description="削除できるテンプレートが見つかりませんでした。",
                 color=discord.Color.red(),
             )
@@ -99,7 +99,7 @@ class UseSharedTemplatesHandler(BaseStateHandler):
         if not templates:
             return build_ephemeral_embed_action(
                 title="共有テンプレートが見つかりません",
-                description="共有テンプレートが登録されていません。管理者に作成を依頼してください。",
+                description="共有テンプレートが登録されていません。他のメンバーに作成・共有してもらうか、あなたが共有することもできます。",
                 color=discord.Color.orange(),
             )
 
