@@ -3,6 +3,7 @@
 cred/
 .venv/
 .idx/
+temp/
 __pycache__/
 .dev.md
 .learned.md
