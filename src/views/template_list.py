@@ -273,7 +273,7 @@ class TemplateListView(discord.ui.View):
             if interaction.response.is_done()
             else interaction.response.edit_message
         )
-        await editor(embed=None, view=None)
+        await editor(view=None)
 
     async def on_timeout(self) -> None:
         for child in self.children:
