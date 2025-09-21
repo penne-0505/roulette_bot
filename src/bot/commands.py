@@ -24,6 +24,7 @@ from views.selection_mode import (
     create_selection_mode_overview_embed,
 )
 from views.template_management import TemplateManagementView
+from views.history_list import HistoryListView
 from views.template_list import TemplateListView
 from views.template_sharing import TemplateSharingView
 from views.view import ModeSelectionView
@@ -316,59 +317,22 @@ def register_commands(client: "BotClient") -> None:
         db_manager = require_db_manager(interaction)
 
         limit = max(1, min(10, limit))
-
         guild_id = interaction.guild_id or 0
-        histories = db_manager.get_recent_history(
-            guild_id=guild_id, template_title=template_title, limit=limit
+
+        view = HistoryListView(
+            db_manager=db_manager,
+            guild_id=guild_id,
+            page_size=limit,
+            template_title=template_title,
         )
 
-        if not histories:
-            description = "抽選履歴が見つかりませんでした。"
-            if template_title:
-                description += f" (テンプレート: {template_title})"
-            embed = discord.Embed(
-                title="🎲 最近の抽選履歴",
-                description=description,
-                color=discord.Color.blue(),
-            )
-            await interaction.followup.send(embed=embed, ephemeral=True)
-            return
+        embed = view.create_embed()
 
-        embed = discord.Embed(
-            title="🎲 最近の抽選履歴",
-            description="最新の抽選結果を表示します。",
-            color=discord.Color.blue(),
-            timestamp=datetime.datetime.now(datetime.timezone.utc),
+        await interaction.followup.send(
+            embed=embed,
+            view=view,
+            ephemeral=True,
         )
-
-        for history in histories:
-            try:
-                selection_mode_label = {
-                    SelectionMode.RANDOM: "完全ランダム",
-                    SelectionMode.BIAS_REDUCTION: "偏り軽減",
-                }[history.selection_mode]
-            except KeyError:  # pragma: no cover - 想定外のモード
-                selection_mode_label = history.selection_mode.value
-
-            timestamp_text = history.created_at.astimezone(
-                datetime.timezone.utc
-            ).strftime("%Y-%m-%d %H:%M UTC")
-            lines = [
-                f"{entry.user_name} → {entry.choice}" for entry in history.entries
-            ]
-            field_value = "\n".join(lines) if lines else "記録がありません"
-            if len(field_value) > 1024:
-                field_value = field_value[:1010] + "\n..."
-
-            field_name = (
-                f"{history.template_title} ({timestamp_text}) [{selection_mode_label}]"
-            )
-            embed.add_field(name=field_name, value=field_value, inline=False)
-
-        if template_title:
-            embed.set_footer(text=f"テンプレート: {template_title}")
-
-        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @tree.command(
         name=locale_str("amidakuji_template_share"),
