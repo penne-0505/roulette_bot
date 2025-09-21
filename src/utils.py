@@ -141,6 +141,7 @@ class CommandsTranslator(discord.app_commands.Translator):
         return None
 
 
+# * 未使用
 # Emoji
 EMOJI_LOL_TOP = 1345304239970324511
 EMOJI_LOL_SUP = 1345304221477507114

@@ -43,7 +43,7 @@ def _load_env_file(env_file: str | Path | None) -> None:
         load_dotenv(path)
     else:
         logging.warning(
-            INFO + f"Environment file '{path}' not found. Falling back to process env."  # noqa: G004
+            INFO + f"Environment file '{path}' not found. Falling back to process env."
         )
 
 
