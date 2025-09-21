@@ -37,7 +37,7 @@ class CommandsTranslator(discord.app_commands.Translator):
             "en-us": "template-share",
         },
         "toggle_embed_mode": {
-            "ja": "toggle_embed_mode",
+            "ja": "表示モード切り替え",
             "en-us": "toggle-embed-mode",
         },
         "amidakuji_template_list": {
@@ -45,7 +45,7 @@ class CommandsTranslator(discord.app_commands.Translator):
             "en-us": "template-list",
         },
         "amidakuji_selection_mode": {
-            "ja": "抽選モード",
+            "ja": "抽選モード切り替え",
             "en-us": "selection-mode",
         },
         "amidakuji_history": {
