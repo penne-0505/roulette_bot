@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import time
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 import discord
 import psutil
@@ -20,6 +20,7 @@ from views.selection_mode import (
     create_selection_mode_overview_embed,
 )
 from views.template_management import TemplateManagementView
+from views.template_list import TemplateListView
 from views.template_sharing import TemplateSharingView
 from views.view import ModeSelectionView
 
@@ -198,6 +199,7 @@ def register_commands(client: "BotClient") -> None:
         db_manager = require_db_manager(interaction)
 
         db_manager.toggle_embed_mode()
+
         current_mode = db_manager.get_embed_mode()
 
         embed = discord.Embed(
@@ -207,6 +209,52 @@ def register_commands(client: "BotClient") -> None:
         )
 
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+    def _merge_templates(*template_lists: Iterable[Template]) -> list[Template]:
+        merged: list[Template] = []
+        seen_ids: set[str] = set()
+        for templates in template_lists:
+            for template in templates:
+                identifier = template.template_id or template.title
+                if identifier in seen_ids:
+                    continue
+                seen_ids.add(identifier)
+                merged.append(template)
+        return merged
+
+    @tree.command(
+        name=locale_str("amidakuji_template_list"),
+        description="利用可能なテンプレートを一覧表示します。",
+    )
+    async def command_list_templates(interaction: discord.Interaction) -> None:
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        db_manager = require_db_manager(interaction)
+        user_id = interaction.user.id
+        guild_id = interaction.guild_id
+
+        user = db_manager.get_user(user_id, guild_id=guild_id, include_shared=True)
+
+        if user is not None:
+            private_templates = list(user.custom_templates)
+            guild_templates = list(user.shared_templates)
+            public_templates = list(user.public_templates)
+        else:
+            guild_templates, public_shared = db_manager.get_shared_templates_for_user(
+                guild_id=guild_id
+            )
+            default_templates = db_manager.get_default_templates()
+            private_templates = []
+            public_templates = _merge_templates(public_shared, default_templates)
+
+        view = TemplateListView(
+            private_templates=private_templates,
+            guild_templates=guild_templates,
+            public_templates=public_templates,
+        )
+
+        embed = view.create_embed()
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @tree.command(
         name=locale_str("amidakuji_selection_mode"),
