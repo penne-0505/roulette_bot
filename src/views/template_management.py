@@ -9,6 +9,12 @@ from db_manager import DBManager
 from models.model import Template, TemplateScope
 
 
+def _create_status_embed(message: str) -> discord.Embed:
+    """補助メッセージ表示用の簡易 Embed を生成する。"""
+
+    return discord.Embed(description=message, color=discord.Color.blurple())
+
+
 @dataclass
 class TemplateEditSession:
     template_id: str
@@ -188,7 +194,10 @@ class TemplateManagementView(discord.ui.View):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
         if status_message:
-            await interaction.followup.send(status_message, ephemeral=True)
+            await interaction.followup.send(
+                embed=_create_status_embed(status_message),
+                ephemeral=True,
+            )
 
     def select_template(self, template_id: str) -> str | None:
         template = self.templates.get(template_id)

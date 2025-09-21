@@ -73,6 +73,12 @@ class TemplateSharingView(discord.ui.View):
         self.unshare_public_button.disabled = not has_public_shared
         self.template_select.update_options()
 
+    @staticmethod
+    def _create_status_embed(message: str) -> discord.Embed:
+        """補助メッセージ表示用の簡易 Embed を生成する。"""
+
+        return discord.Embed(description=message, color=discord.Color.blurple())
+
     def create_embed(self) -> discord.Embed:
         embed = discord.Embed(title="テンプレート共有・公開", color=discord.Color.blurple())
         if self.current_action is None:
@@ -121,7 +127,10 @@ class TemplateSharingView(discord.ui.View):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
         if status_message:
-            await interaction.followup.send(status_message, ephemeral=True)
+            await interaction.followup.send(
+                embed=self._create_status_embed(status_message),
+                ephemeral=True,
+            )
 
     def set_action(self, action: ShareAction) -> None:
         self.current_action = action
