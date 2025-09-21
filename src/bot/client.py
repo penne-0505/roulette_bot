@@ -7,12 +7,10 @@ from typing import Any
 
 import discord
 
-from services.app_context import create_db_manager
+from db_manager import DBManager
 from services.startup_check import StartupSelfCheck
 from utils import (
-    DATEFORMAT,
     ERROR,
-    FORMAT,
     INFO,
     CommandsTranslator,
     blue,
@@ -29,19 +27,26 @@ class BotClient(discord.Client):
     def __init__(
         self,
         *,
+        db_manager: DBManager,
         intents: discord.Intents | None = None,
         translator: discord.app_commands.Translator | None = None,
+        auto_sync_tree: bool = True,
     ) -> None:
+        if db_manager is None:
+            raise ValueError("db_manager must not be None")
+
         super().__init__(intents=intents or discord.Intents.all())
         self.start_time = time.time()
-        self.db = create_db_manager()
+        self.db = db_manager
         self.tree = discord.app_commands.CommandTree(self)
         self._translator = translator or CommandsTranslator()
+        self._auto_sync_tree = auto_sync_tree
 
     async def setup_hook(self) -> None:
         await self.tree.set_translator(self._translator)
-        await self.tree.sync()
-        logging.info(INFO + "Application commands synchronized.")
+        if self._auto_sync_tree:
+            await self.tree.sync()
+            logging.info(INFO + "Application commands synchronized.")
 
     async def on_ready(self) -> None:
         self.db.ensure_default_templates()

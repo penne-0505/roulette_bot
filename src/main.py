@@ -3,31 +3,26 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from bot import BotClient, load_client_token, register_commands
-from utils import DATEFORMAT, ERROR, FORMAT, INFO
-
-
-logging.basicConfig(level=logging.INFO, format=FORMAT, datefmt=DATEFORMAT)
+from app import build_discord_application, configure_logging, load_config
+from utils import ERROR, INFO
 
 
 async def run_bot() -> None:
     try:
-        token = load_client_token()
+        config = load_config()
     except RuntimeError as exc:
         logging.error(ERROR + str(exc))
         return
 
-    client = BotClient()
-    register_commands(client)
+    application = build_discord_application(config)
 
     logging.info(INFO + "Client initialized. Setup hook will handle command sync.")
-
-    async with client:
-        logging.info(INFO + "Starting Discord client event loop.")
-        await client.start(token)
+    await application.run()
 
 
 def main() -> None:
+    configure_logging()
+    logging.info(INFO + "Starting Discord client event loop.")
     asyncio.run(run_bot())
 
 

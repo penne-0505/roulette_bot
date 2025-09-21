@@ -4,12 +4,11 @@ from collections.abc import Iterable
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import firebase_admin
 from firebase_admin import App, credentials, firestore
 
-import utils
 from db.constants import COLLECTION_SENTINEL_DOCUMENT_ID, REQUIRED_COLLECTIONS
 from db.repositories import (
     HistoryRepository,
@@ -44,8 +43,11 @@ __all__ = [
 ]
 
 
-class DBManager(metaclass=utils.Singleton):
+class DBManager:
     """Firestore上のデータを操作する高水準マネージャ。"""
+
+    _global_instance: ClassVar["DBManager | None"] = None
+
     def __init__(self) -> None:
         self._app: App | None = None
         self.db: firestore.firestore.Client | None = None
@@ -56,7 +58,13 @@ class DBManager(metaclass=utils.Singleton):
 
     @classmethod
     def get_instance(cls) -> "DBManager":
-        return cls()
+        if cls._global_instance is None:
+            cls._global_instance = cls()
+        return cls._global_instance
+
+    @classmethod
+    def set_global_instance(cls, instance: "DBManager" | None) -> None:
+        cls._global_instance = instance
 
     def initialize(self, credentials_source: dict[str, Any] | Path) -> None:
         if self._app is not None:
@@ -80,12 +88,34 @@ class DBManager(metaclass=utils.Singleton):
             )
 
         self._app = app
-        self.db = firestore.client(app=app)
-        self.user_repository = UserRepository(self.db)
-        self.info_repository = InfoRepository(self.db)
-        self.shared_template_repository = SharedTemplateRepository(self.db)
-        self.history_repository = HistoryRepository(self.db)
+        client = firestore.client(app=app)
+        self._attach_client(client)
+
+    def with_client(self, client: firestore.firestore.Client) -> None:
+        if self.db is not None and self.db is not client:
+            raise RuntimeError(
+                "DBManager is already initialized with a different Firestore client"
+            )
+        self._attach_client(client)
+
+    def _attach_client(self, client: firestore.firestore.Client) -> None:
+        self.db = client
+        self.user_repository = UserRepository(client)
+        self.info_repository = InfoRepository(client)
+        self.shared_template_repository = SharedTemplateRepository(client)
+        self.history_repository = HistoryRepository(client)
         self.ensure_required_collections()
+
+    @property
+    def is_configured(self) -> bool:
+        return all(
+            (
+                self.db,
+                self.user_repository,
+                self.info_repository,
+                self.history_repository,
+            )
+        )
 
     def ensure_required_collections(self) -> None:
         if self.db is None:
@@ -107,12 +137,7 @@ class DBManager(metaclass=utils.Singleton):
                 document_ref.set(sentinel_payload)
 
     def _ensure_configured(self) -> None:
-        if (
-            self.user_repository is None
-            or self.info_repository is None
-            or self.history_repository is None
-            or self.db is None
-        ):
+        if not self.is_configured:
             raise RuntimeError(
                 "DBManager is not configured. Call initialize() or with_app() before use."
             )

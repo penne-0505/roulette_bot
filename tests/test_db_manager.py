@@ -1,8 +1,6 @@
 import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-
-import utils
 from db_manager import (
     COLLECTION_SENTINEL_DOCUMENT_ID,
     DBManager,
@@ -19,8 +17,12 @@ from models.model import (
     UserInfo,
 )
 
+
+def reset_manager() -> None:
+    DBManager.set_global_instance(None)
+
 def test_get_embed_mode_initializes_missing_document():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     mock_info_repository = MagicMock()
@@ -34,7 +36,7 @@ def test_get_embed_mode_initializes_missing_document():
     try:
         mode = manager.get_embed_mode()
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     assert mode == "compact"
     mock_info_repository.create_document.assert_called_once_with(
@@ -43,7 +45,7 @@ def test_get_embed_mode_initializes_missing_document():
 
 
 def test_set_embed_mode_updates_document():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     mock_info_repository = MagicMock()
@@ -57,7 +59,7 @@ def test_set_embed_mode_updates_document():
     try:
         manager.set_embed_mode(ResultEmbedMode.DETAILED)
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     mock_info_repository.create_document.assert_called_once_with(
         "embed_mode", {"embed_mode": "detailed"}
@@ -65,7 +67,7 @@ def test_set_embed_mode_updates_document():
 
 
 def test_get_default_templates_initializes_when_missing_document():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     mock_info_repository = MagicMock()
@@ -80,7 +82,7 @@ def test_get_default_templates_initializes_when_missing_document():
     try:
         templates = manager.get_default_templates()
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     assert templates == []
     mock_info_repository.create_document.assert_called_once()
@@ -97,7 +99,7 @@ def _make_document_ref(*, exists: bool) -> MagicMock:
 
 
 def test_ensure_required_collections_creates_sentinel_documents():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     collection_refs: dict[str, MagicMock] = {}
@@ -122,7 +124,7 @@ def test_ensure_required_collections_creates_sentinel_documents():
     try:
         manager.ensure_required_collections()
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     assert set(collection_refs) == set(REQUIRED_COLLECTIONS)
     for document_ref in document_refs.values():
@@ -130,7 +132,7 @@ def test_ensure_required_collections_creates_sentinel_documents():
 
 
 def test_ensure_required_collections_skips_existing_sentinel():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     document_refs: dict[str, MagicMock] = {}
@@ -153,7 +155,7 @@ def test_ensure_required_collections_skips_existing_sentinel():
     try:
         manager.ensure_required_collections()
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     assert set(document_refs) == set(REQUIRED_COLLECTIONS)
     for document_ref in document_refs.values():
@@ -183,7 +185,7 @@ def test_shared_template_repository_list_skips_sentinel():
 
 
 def test_get_user_includes_shared_and_public_templates():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     mock_user_repository = MagicMock()
@@ -231,7 +233,7 @@ def test_get_user_includes_shared_and_public_templates():
     try:
         user = manager.get_user(1, guild_id=999)
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     assert user is not None
     assert len(user.custom_templates) == 1
@@ -243,7 +245,7 @@ def test_get_user_includes_shared_and_public_templates():
 
 
 def test_copy_shared_template_to_user_generates_unique_title():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     existing_template = Template(
@@ -266,7 +268,7 @@ def test_copy_shared_template_to_user_generates_unique_title():
     try:
         copied = manager.copy_shared_template_to_user(1, shared_template)
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     manager.add_custom_template.assert_called_once()
     args, _ = manager.add_custom_template.call_args
@@ -276,7 +278,7 @@ def test_copy_shared_template_to_user_generates_unique_title():
     assert copied.title == "Guild Shared (2)"
 
 def test_get_selection_mode_initializes_missing_document():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     mock_info_repository = MagicMock()
@@ -290,7 +292,7 @@ def test_get_selection_mode_initializes_missing_document():
     try:
         mode = manager.get_selection_mode()
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     assert mode == SelectionMode.RANDOM.value
     mock_info_repository.create_document.assert_called_once_with(
@@ -299,7 +301,7 @@ def test_get_selection_mode_initializes_missing_document():
 
 
 def test_save_history_uses_history_repository():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     mock_history_repository = MagicMock()
@@ -320,7 +322,7 @@ def test_save_history_uses_history_repository():
             selection_mode=SelectionMode.RANDOM,
         )
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     mock_history_repository.add_entry.assert_called_once()
     saved_data = mock_history_repository.add_entry.call_args.kwargs.get("data")
@@ -333,7 +335,7 @@ def test_save_history_uses_history_repository():
 
 
 def test_get_recent_history_converts_documents():
-    utils.Singleton._instances.pop(DBManager, None)
+    reset_manager()
     manager = DBManager.get_instance()
 
     timestamp = datetime.datetime.now(datetime.timezone.utc)
@@ -359,7 +361,7 @@ def test_get_recent_history_converts_documents():
     try:
         histories = manager.get_recent_history(guild_id=1)
     finally:
-        utils.Singleton._instances.pop(DBManager, None)
+        reset_manager()
 
     assert len(histories) == 1
     history = histories[0]
