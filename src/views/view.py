@@ -4,7 +4,6 @@ from components.button import (
     ApplyOptionsButton,
     BackToTemplateSelectButton,
     CopySharedTemplateButton,
-    DeleteTemplateButton,
     EnterOptionButton,
     OptionDeleteButton,
     OptionMoveDownButton,
@@ -43,7 +42,6 @@ class SelectTemplateView(discord.ui.View):
     def __init__(self, context: CommandContext, templates: list[Template]):
         super().__init__(timeout=300)
         self.add_item(TemplateSelect(context, templates))
-        self.add_item(DeleteTemplateButton(context, disabled=not templates))
 
 
 class DeleteTemplateView(discord.ui.View):
