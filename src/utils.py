@@ -89,15 +89,6 @@ class CommandsTranslator(discord.app_commands.Translator):
             "ja": "最近の抽選履歴を表示します。",
             "en-us": "Show recent draw history.",
         },
-        # option descriptions
-        "amidakuji_history.limit": {
-            "ja": "表示件数 (1-10)",
-            "en-us": "Number of entries to show (1-10)",
-        },
-        "amidakuji_history.template_title": {
-            "ja": "絞り込みたいテンプレート名 (任意)",
-            "en-us": "Template name filter (optional)",
-        },
     }
 
     @staticmethod

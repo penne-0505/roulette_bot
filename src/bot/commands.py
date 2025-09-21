@@ -307,10 +307,6 @@ def register_commands(client: "BotClient") -> None:
         name=locale_str("amidakuji_history"),
         description=locale_str("amidakuji_history.description"),
     )
-    @discord.app_commands.describe(
-        limit=locale_str("amidakuji_history.limit"),
-        template_title=locale_str("amidakuji_history.template_title"),
-    )
     async def command_amidakuji_history(
         interaction: discord.Interaction,
     ) -> None:
