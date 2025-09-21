@@ -61,6 +61,14 @@ class EmbedModeView(discord.ui.View):
         self.add_item(_EmbedModeChangeButton(view=self))
         self.add_item(_EmbedModeCancelButton(view=self))
 
+    def disable_all_items(self) -> None:
+        disable_all = getattr(super(), "disable_all_items", None)
+        if callable(disable_all):
+            disable_all()
+            return
+        for item in self.children:
+            item.disabled = True
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(
