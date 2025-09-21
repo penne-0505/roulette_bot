@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from utils import INFO
 
 
-def load_client_token(env_file: str | Path = Path(".env") | None) -> str:
+def load_client_token(env_file: str | Path = Path(".env")) -> str:
     """Discordボットのトークンを環境変数から読み込む。"""
 
     env_path = Path(env_file)
