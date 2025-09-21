@@ -3,7 +3,6 @@ import discord
 from components.button import (
     ApplyOptionsButton,
     BackToTemplateSelectButton,
-    CreateNewButton,
     CopySharedTemplateButton,
     DeleteTemplateButton,
     EnterOptionButton,
@@ -124,7 +123,6 @@ class ModeSelectionView(discord.ui.View):
     def __init__(self, context: CommandContext):
         super().__init__(timeout=300)
         self.add_item(UseExistingButton(context))
-        self.add_item(CreateNewButton(context))
         self.add_item(UseSharedTemplatesButton(context))
         self.add_item(UsePublicTemplatesButton(context))
         self.add_item(UseHistoryButton(context))

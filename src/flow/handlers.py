@@ -126,7 +126,10 @@ class UseExistingHandler(BaseStateHandler):
         if not templates:
             return _build_ephemeral_embed_action(
                 title="テンプレートが見つかりません",
-                description="まずはテンプレートを作成するか、共有テンプレートを利用してください。",
+                description=(
+                    "まずは `/amidakuji_template_create` でテンプレートを作成するか、"
+                    "共有テンプレートを利用してください。"
+                ),
                 color=discord.Color.orange(),
             )
 
@@ -393,6 +396,7 @@ class OptionMovedUpHandler(BaseStateHandler):
             content=f"「{moved_option}」を上に移動しました。",
             ephemeral=True,
             followup=True,
+            delete_after=5.0,
         )
         return [EditMessageAction(embed=embed, view=view), message]
 
@@ -430,6 +434,7 @@ class OptionMovedDownHandler(BaseStateHandler):
             content=f"「{moved_option}」を下に移動しました。",
             ephemeral=True,
             followup=True,
+            delete_after=5.0,
         )
         return [EditMessageAction(embed=embed, view=view), message]
 

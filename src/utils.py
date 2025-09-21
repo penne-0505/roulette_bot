@@ -24,6 +24,7 @@ class CommandsTranslator(discord.app_commands.Translator):
             "ja": {
                 "ping": "ping",
                 "amidakuji": "あみだくじ",
+                "amidakuji_template_create": "テンプレート作成",
                 "amidakuji_template_manage": "テンプレート管理",
                 "amidakuji_template_share": "テンプレート共有",
                 # "toggle_embed_mode": "埋め込み形式切替", # なぜか、regexのバリデーションに引っかかる
@@ -31,6 +32,7 @@ class CommandsTranslator(discord.app_commands.Translator):
             "en-US": {
                 "ping": "ping",
                 "amidakuji": "amidakuji",
+                "amidakuji_template_create": "template-create",
                 "amidakuji_template_manage": "template-manage",
                 "amidakuji_template_share": "template-share",
                 # "toggle_embed_mode": "toggle embed mode",

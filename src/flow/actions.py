@@ -1,6 +1,7 @@
 """Actions representing Discord responses triggered by state handlers."""
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Protocol, Sequence
 
@@ -74,6 +75,7 @@ class SendMessageAction(_BaseAction):
     ephemeral: bool = True
     followup: bool | None = None
     view: discord.ui.View | None = None
+    delete_after: float | None = None
 
     async def execute(self, context: CommandContext) -> None:
         interaction = self._resolve_interaction(context)
@@ -89,10 +91,32 @@ class SendMessageAction(_BaseAction):
         if self.view is not None:
             payload["view"] = self.view
 
+        message: discord.Message | None = None
         if use_followup:
-            await interaction.followup.send(ephemeral=self.ephemeral, **payload)
+            message = await interaction.followup.send(
+                ephemeral=self.ephemeral,
+                **payload,
+            )
         else:
             await interaction.response.send_message(ephemeral=self.ephemeral, **payload)
+            if self.delete_after is not None:
+                try:
+                    message = await interaction.original_response()
+                except (discord.HTTPException, discord.NotFound):
+                    message = None
+
+        if self.delete_after is not None and message is not None:
+            asyncio.create_task(self._schedule_delete(message, self.delete_after))
+
+    @staticmethod
+    async def _schedule_delete(
+        message: discord.Message, delay: float
+    ) -> None:
+        try:
+            await asyncio.sleep(delay)
+            await message.delete()
+        except (discord.HTTPException, discord.NotFound):
+            pass
 
 
 @dataclass(slots=True)

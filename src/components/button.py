@@ -15,7 +15,10 @@ def _get_flow(context: CommandContext):
 
 class EnterOptionButton(discord.ui.Button):
     def __init__(self, context: CommandContext):
-        super().__init__(style=discord.ButtonStyle.primary, label="次のステップ")
+        super().__init__(
+            style=discord.ButtonStyle.primary,
+            label="選択肢を追加する",
+        )
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):

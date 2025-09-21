@@ -129,6 +129,29 @@ def register_commands(client: "BotClient") -> None:
         await interaction.followup.send(view=view, ephemeral=True)
 
     @tree.command(
+        name=locale_str("amidakuji_template_create"),
+        description="テンプレートを新規作成します。",
+    )
+    async def command_create_template(interaction: discord.Interaction) -> None:
+        db_manager = require_db_manager(interaction)
+        services = SimpleNamespace(db=db_manager)
+        context = CommandContext(
+            interaction=interaction,
+            state=AmidakujiState.MODE_CREATE_NEW,
+            services=services,
+        )
+
+        flow = FlowController(context=context, services=services)
+        services.flow = flow
+        context.result = interaction
+
+        await flow.dispatch(
+            AmidakujiState.MODE_CREATE_NEW,
+            interaction,
+            interaction,
+        )
+
+    @tree.command(
         name=locale_str("amidakuji_template_manage"),
         description="テンプレートを編集または削除します。",
     )
@@ -143,7 +166,7 @@ def register_commands(client: "BotClient") -> None:
         if not templates:
             embed = discord.Embed(
                 title="テンプレートはまだありません",
-                description="まずは `/amidakuji` からテンプレートを作成してください。",
+                description="まずは `/amidakuji_template_create` でテンプレートを作成してください。",
                 color=discord.Color.orange(),
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
@@ -318,7 +341,10 @@ def register_commands(client: "BotClient") -> None:
         if not private_templates and not guild_templates and not public_templates:
             embed = discord.Embed(
                 title="管理できるテンプレートがありません",
-                description="まずは `/amidakuji` からテンプレートを作成または共有してください。",
+                description=(
+                    "まずは `/amidakuji_template_create` でテンプレートを作成するか、"
+                    "共有設定を追加してください。"
+                ),
                 color=discord.Color.orange(),
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
