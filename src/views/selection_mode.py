@@ -52,8 +52,8 @@ class SelectionModeView(discord.ui.View):
         self.current_mode = current_mode
         self.user_id = user_id
 
-        self.add_item(_SelectionModeChangeButton(view=self))
-        self.add_item(_SelectionModeCancelButton(view=self))
+        self.add_item(_SelectionModeChangeButton())
+        self.add_item(_SelectionModeCancelButton())
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user_id:
@@ -74,33 +74,43 @@ class SelectionModeView(discord.ui.View):
 
 
 class _SelectionModeChangeButton(discord.ui.Button):
-    def __init__(self, *, view: SelectionModeView):
+    def __init__(self):
         super().__init__(label="変更する", style=discord.ButtonStyle.primary)
-        self.view = view
+
+    def _selection_view(self) -> SelectionModeView:
+        view = self.view
+        if not isinstance(view, SelectionModeView):
+            raise RuntimeError("Unexpected view type attached to SelectionModeChangeButton")
+        return view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, SelectionModeView)
-        new_mode = self.view._toggle_mode()
-        self.view.db_manager.set_selection_mode(new_mode)
-        self.view.current_mode = new_mode
-        self.view.disable_all_items()
-        self.view.stop()
+        view = self._selection_view()
+        new_mode = view._toggle_mode()
+        view.db_manager.set_selection_mode(new_mode)
+        view.current_mode = new_mode
+        view.disable_all_items()
+        view.stop()
         await interaction.response.edit_message(
             embed=create_selection_mode_changed_embed(new_mode),
-            view=self.view,
+            view=view,
         )
 
 
 class _SelectionModeCancelButton(discord.ui.Button):
-    def __init__(self, *, view: SelectionModeView):
+    def __init__(self):
         super().__init__(label="キャンセル", style=discord.ButtonStyle.secondary)
-        self.view = view
+
+    def _selection_view(self) -> SelectionModeView:
+        view = self.view
+        if not isinstance(view, SelectionModeView):
+            raise RuntimeError("Unexpected view type attached to SelectionModeCancelButton")
+        return view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        assert isinstance(self.view, SelectionModeView)
-        self.view.disable_all_items()
-        self.view.stop()
+        view = self._selection_view()
+        view.disable_all_items()
+        view.stop()
         await interaction.response.edit_message(
-            embed=create_selection_mode_cancelled_embed(self.view.current_mode),
-            view=self.view,
+            embed=create_selection_mode_cancelled_embed(view.current_mode),
+            view=view,
         )
