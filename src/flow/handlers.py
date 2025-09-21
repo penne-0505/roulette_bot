@@ -465,16 +465,21 @@ class TemplateCreatedHandler(BaseStateHandler):
             color=discord.Color.green(),
         )
 
-        context.update_context(
-            state=AmidakujiState.TEMPLATE_DETERMINED,
-            result=template,
-            interaction=context.interaction,
-        )
+        is_main_flow = AmidakujiState.COMMAND_EXECUTED in context.history
 
-        return [
+        actions: list[FlowAction] = [
             DeferResponseAction(ephemeral=True),
             SendMessageAction(embed=embed, ephemeral=True, followup=True),
         ]
+
+        if is_main_flow:
+            context.update_context(
+                state=AmidakujiState.TEMPLATE_DETERMINED,
+                result=template,
+                interaction=context.interaction,
+            )
+
+        return actions
 
 
 class TemplateDeletedHandler(BaseStateHandler):

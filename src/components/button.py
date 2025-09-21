@@ -74,7 +74,10 @@ class ApplyOptionsButton(DisableViewOnCallbackMixin, discord.ui.Button):
             await self._cleanup_after_callback(interaction)
 
     def _should_disable_after_dispatch(self) -> bool:
-        return self.context.state is AmidakujiState.TEMPLATE_DETERMINED
+        return self.context.state in {
+            AmidakujiState.TEMPLATE_DETERMINED,
+            AmidakujiState.TEMPLATE_CREATED,
+        }
 
 
 class OptionMoveUpButton(discord.ui.Button):

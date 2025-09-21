@@ -247,8 +247,37 @@ async def test_option_moved_down_handler_swaps_options(base_interaction):
 
 
 @pytest.mark.asyncio
-async def test_template_created_handler_updates_context_and_saves_template(base_interaction):
+async def test_template_created_handler_updates_context_in_main_flow(base_interaction):
     template = Template(title="Valorant", choices=["Duelist", "Initiator"])
+    context = CommandContext(
+        interaction=base_interaction,
+        state=AmidakujiState.COMMAND_EXECUTED,
+    )
+    context.result = base_interaction
+    context.update_context(
+        state=AmidakujiState.TEMPLATE_CREATED,
+        result=template,
+        interaction=base_interaction,
+    )
+
+    services = SimpleNamespace(db=MagicMock())
+
+    handler = TemplateCreatedHandler()
+    actions = await handler.handle(context, services)
+
+    assert isinstance(actions, list)
+    assert isinstance(actions[0], DeferResponseAction)
+    assert isinstance(actions[1], SendMessageAction)
+    services.db.add_custom_template.assert_called_once_with(
+        user_id=42, template=template
+    )
+    assert context.state is AmidakujiState.TEMPLATE_DETERMINED
+    assert context.result is template
+
+
+@pytest.mark.asyncio
+async def test_template_created_handler_standalone_creation_stops_flow(base_interaction):
+    template = Template(title="Solo Queue", choices=["Top", "Jungle"])
     context = CommandContext(
         interaction=base_interaction,
         state=AmidakujiState.TEMPLATE_CREATED,
@@ -266,7 +295,7 @@ async def test_template_created_handler_updates_context_and_saves_template(base_
     services.db.add_custom_template.assert_called_once_with(
         user_id=42, template=template
     )
-    assert context.state is AmidakujiState.TEMPLATE_DETERMINED
+    assert context.state is AmidakujiState.TEMPLATE_CREATED
     assert context.result is template
 
 
