@@ -236,6 +236,9 @@ class MemberSelect(DisableViewOnCallbackMixin, discord.ui.UserSelect):
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
+        if not interaction.response.is_done():
+            # Ack the interaction early to avoid "Unknown interaction" when processing takes time
+            await interaction.response.defer()
         result = []
         for user in self.values:
             if isinstance(user, discord.User):
