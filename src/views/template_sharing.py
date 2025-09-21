@@ -238,20 +238,20 @@ class TemplateSharingView(discord.ui.View):
 class _SharingTemplateSelect(discord.ui.Select):
     def __init__(self, view: TemplateSharingView) -> None:
         super().__init__(placeholder="テンプレートを選択してください", min_values=1, max_values=1)
-        self.view = view
+        self.template_view = view
         self.disabled = True
 
     def update_options(self) -> None:
-        action = self.view.current_action
+        action = self.template_view.current_action
         options: List[discord.SelectOption] = []
         if action is ShareAction.SHARE_GUILD:
-            source = self.view.private_templates
+            source = self.template_view.private_templates
         elif action is ShareAction.SHARE_PUBLIC:
-            source = self.view.private_templates
+            source = self.template_view.private_templates
         elif action is ShareAction.UNSHARE_GUILD:
-            source = self.view.guild_templates
+            source = self.template_view.guild_templates
         elif action is ShareAction.UNSHARE_PUBLIC:
-            source = self.view.public_templates
+            source = self.template_view.public_templates
         else:
             source = {}
 
@@ -274,56 +274,56 @@ class _SharingTemplateSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction) -> None:
         template_id = self.values[0]
-        await self.view.handle_selection(interaction, template_id)
+        await self.template_view.handle_selection(interaction, template_id)
 
 
 class _ShareToGuildButton(discord.ui.Button):
     def __init__(self, view: TemplateSharingView) -> None:
         super().__init__(style=discord.ButtonStyle.primary, label="サーバーで共有")
-        self.view = view
+        self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.view.set_action(ShareAction.SHARE_GUILD)
-        await self.view.render(interaction)
+        self.template_view.set_action(ShareAction.SHARE_GUILD)
+        await self.template_view.render(interaction)
 
 
 class _ShareToPublicButton(discord.ui.Button):
     def __init__(self, view: TemplateSharingView) -> None:
         super().__init__(style=discord.ButtonStyle.primary, label="グローバル公開")
-        self.view = view
+        self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.view.set_action(ShareAction.SHARE_PUBLIC)
-        await self.view.render(interaction)
+        self.template_view.set_action(ShareAction.SHARE_PUBLIC)
+        await self.template_view.render(interaction)
 
 
 class _UnshareGuildButton(discord.ui.Button):
     def __init__(self, view: TemplateSharingView) -> None:
         super().__init__(style=discord.ButtonStyle.secondary, label="共有を解除")
-        self.view = view
+        self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.view.set_action(ShareAction.UNSHARE_GUILD)
-        await self.view.render(interaction)
+        self.template_view.set_action(ShareAction.UNSHARE_GUILD)
+        await self.template_view.render(interaction)
 
 
 class _UnsharePublicButton(discord.ui.Button):
     def __init__(self, view: TemplateSharingView) -> None:
         super().__init__(style=discord.ButtonStyle.secondary, label="公開を解除")
-        self.view = view
+        self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.view.set_action(ShareAction.UNSHARE_PUBLIC)
-        await self.view.render(interaction)
+        self.template_view.set_action(ShareAction.UNSHARE_PUBLIC)
+        await self.template_view.render(interaction)
 
 
 class _CloseButton(discord.ui.Button):
     def __init__(self, view: TemplateSharingView) -> None:
         super().__init__(style=discord.ButtonStyle.secondary, label="閉じる")
-        self.view = view
+        self.template_view = view
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        for child in self.view.children:
+        for child in self.template_view.children:
             child.disabled = True
-        await self.view.render(interaction, status_message="テンプレート共有を終了しました。")
-        self.view.stop()
+        await self.template_view.render(interaction, status_message="テンプレート共有を終了しました。")
+        self.template_view.stop()
