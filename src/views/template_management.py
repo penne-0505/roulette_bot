@@ -232,7 +232,20 @@ class TemplateManagementView(discord.ui.View):
 
 class _TemplateSelect(discord.ui.Select):
     def __init__(self, view: TemplateManagementView) -> None:
-        super().__init__(placeholder="テンプレートを選択してください", min_values=1, max_values=1)
+        super().__init__(
+            placeholder="テンプレートを選択してください",
+            min_values=1,
+            max_values=1,
+            options=[
+                discord.SelectOption(
+                    label="テンプレートがありません",
+                    value="__placeholder__",
+                    description=None,
+                )
+            ],
+            disabled=True,
+            required=False,
+        )
 
     def refresh(self, options: List[discord.SelectOption]) -> None:
         if options:
@@ -264,8 +277,16 @@ class _TemplateOptionSelect(discord.ui.Select):
             placeholder="編集する候補を選択してください",
             min_values=1,
             max_values=1,
+            options=[
+                discord.SelectOption(
+                    label="候補がありません",
+                    value="__placeholder__",
+                    description=None,
+                )
+            ],
+            disabled=True,
+            required=False,
         )
-        self.disabled = True
 
     def set_session(self, session: Optional[TemplateEditSession]) -> None:
         if session is None or not session.choices:
