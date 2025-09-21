@@ -14,36 +14,129 @@ class Singleton(type):
 
 
 class CommandsTranslator(discord.app_commands.Translator):
+    _TRANSLATIONS: dict[str, dict[str, str]] = {
+        # command names
+        "ping": {
+            "ja": "ping",
+            "en-us": "ping",
+        },
+        "amidakuji": {
+            "ja": "あみだくじ",
+            "en-us": "amidakuji",
+        },
+        "amidakuji_template_create": {
+            "ja": "テンプレート作成",
+            "en-us": "template-create",
+        },
+        "amidakuji_template_manage": {
+            "ja": "テンプレート管理",
+            "en-us": "template-manage",
+        },
+        "amidakuji_template_share": {
+            "ja": "テンプレート共有",
+            "en-us": "template-share",
+        },
+        "toggle_embed_mode": {
+            "ja": "toggle_embed_mode",
+            "en-us": "toggle-embed-mode",
+        },
+        "amidakuji_template_list": {
+            "ja": "テンプレート一覧",
+            "en-us": "template-list",
+        },
+        "amidakuji_selection_mode": {
+            "ja": "抽選モード",
+            "en-us": "selection-mode",
+        },
+        "amidakuji_history": {
+            "ja": "抽選履歴",
+            "en-us": "history",
+        },
+        # command descriptions
+        "ping.description": {
+            "ja": "Botの応答速度を確認します。🏓",
+            "en-us": "Ping the bot. 🏓",
+        },
+        "amidakuji.description": {
+            "ja": "指定した参加者に役割をランダムに割り当てます。",
+            "en-us": "Assign roles to users randomly.",
+        },
+        "amidakuji_template_create.description": {
+            "ja": "テンプレートを新規作成します。",
+            "en-us": "Create a new template.",
+        },
+        "amidakuji_template_manage.description": {
+            "ja": "テンプレートを編集または削除します。",
+            "en-us": "Edit or delete your templates.",
+        },
+        "amidakuji_template_share.description": {
+            "ja": "テンプレートの共有・公開設定を管理します。",
+            "en-us": "Manage template sharing and publishing settings.",
+        },
+        "toggle_embed_mode.description": {
+            "ja": "コマンド結果の埋め込み表示形式を切り替えます。",
+            "en-us": "Toggle the embed mode of the command result.",
+        },
+        "amidakuji_template_list.description": {
+            "ja": "利用可能なテンプレートを一覧表示します。",
+            "en-us": "List available templates.",
+        },
+        "amidakuji_selection_mode.description": {
+            "ja": "抽選のアルゴリズムを切り替えます。",
+            "en-us": "Switch the selection algorithm.",
+        },
+        "amidakuji_history.description": {
+            "ja": "最近の抽選履歴を表示します。",
+            "en-us": "Show recent draw history.",
+        },
+        # option descriptions
+        "amidakuji_history.limit": {
+            "ja": "表示件数 (1-10)",
+            "en-us": "Number of entries to show (1-10)",
+        },
+        "amidakuji_history.template_title": {
+            "ja": "絞り込みたいテンプレート名 (任意)",
+            "en-us": "Template name filter (optional)",
+        },
+    }
+
+    @staticmethod
+    def _resolve_locale(locale: discord.Locale) -> list[str]:
+        value = locale.value
+        if not value:
+            return []
+
+        normalized = value.lower()
+        locales = [normalized]
+        if "-" in normalized:
+            base = normalized.split("-", 1)[0]
+            if base not in locales:
+                locales.append(base)
+        return locales
+
     async def translate(
         self,
         string: discord.app_commands.locale_str,
         locale: discord.Locale,
         context: discord.app_commands.TranslationContext,
     ) -> str | None:
-        command_names = {
-            "ja": {
-                "ping": "ping",
-                "amidakuji": "あみだくじ",
-                "amidakuji_template_create": "テンプレート作成",
-                "amidakuji_template_manage": "テンプレート管理",
-                "amidakuji_template_share": "テンプレート共有",
-                # "toggle_embed_mode": "埋め込み形式切替", # なぜか、regexのバリデーションに引っかかる
-            },
-            "en-US": {
-                "ping": "ping",
-                "amidakuji": "amidakuji",
-                "amidakuji_template_create": "template-create",
-                "amidakuji_template_manage": "template-manage",
-                "amidakuji_template_share": "template-share",
-                # "toggle_embed_mode": "toggle embed mode",
-            },
-        }
+        message = string.message
+        if not message:
+            return None
 
-        if (
-            locale.value in command_names
-            and string.message in command_names[locale.value]
-        ):
-            return command_names[locale.value][string.message]
+        translations = self._TRANSLATIONS.get(message)
+        if not translations:
+            return None
+
+        for candidate in self._resolve_locale(locale):
+            if candidate in translations:
+                return translations[candidate]
+
+        value = locale.value
+        if value and value.lower().startswith("en"):
+            fallback = translations.get("en-us") or translations.get("en")
+            if fallback is not None:
+                return fallback
 
         return None
 

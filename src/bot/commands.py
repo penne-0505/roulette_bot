@@ -44,7 +44,10 @@ def register_commands(client: "BotClient") -> None:
             raise RuntimeError("DB manager is not available")
         return db_manager
 
-    @tree.command(name=locale_str("ping"), description="Ping the bot. 🏓")
+    @tree.command(
+        name=locale_str("ping"),
+        description=locale_str("ping.description"),
+    )
     async def command_ping(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True)
 
@@ -117,7 +120,7 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("amidakuji"),
-        description="Assign roles to users randomly.",
+        description=locale_str("amidakuji.description"),
     )
     async def command_amidakuji(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -140,7 +143,7 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("amidakuji_template_create"),
-        description="テンプレートを新規作成します。",
+        description=locale_str("amidakuji_template_create.description"),
     )
     async def command_create_template(interaction: discord.Interaction) -> None:
         db_manager = require_db_manager(interaction)
@@ -163,7 +166,7 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("amidakuji_template_manage"),
-        description="テンプレートを編集または削除します。",
+        description=locale_str("amidakuji_template_manage.description"),
     )
     async def command_manage_templates(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -196,7 +199,7 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("toggle_embed_mode"),
-        description="Toggle the embed mode of the result of the command.",
+        description=locale_str("toggle_embed_mode.description"),
     )
     async def command_toggle_embed_mode(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -235,7 +238,7 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("amidakuji_template_list"),
-        description="利用可能なテンプレートを一覧表示します。",
+        description=locale_str("amidakuji_template_list.description"),
     )
     async def command_list_templates(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -269,7 +272,7 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("amidakuji_selection_mode"),
-        description="抽選のアルゴリズムを切り替えます。",
+        description=locale_str("amidakuji_selection_mode.description"),
     )
     async def command_set_selection_mode(
         interaction: discord.Interaction,
@@ -302,10 +305,11 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("amidakuji_history"),
-        description="最近の抽選履歴を表示します。",
-        )
+        description=locale_str("amidakuji_history.description"),
+    )
     @discord.app_commands.describe(
-        limit="表示件数 (1-10)", template_title="絞り込みたいテンプレート名 (任意)"
+        limit=locale_str("amidakuji_history.limit"),
+        template_title=locale_str("amidakuji_history.template_title"),
     )
     async def command_amidakuji_history(
         interaction: discord.Interaction,
@@ -336,7 +340,7 @@ def register_commands(client: "BotClient") -> None:
 
     @tree.command(
         name=locale_str("amidakuji_template_share"),
-        description="テンプレートの共有・公開設定を管理します。",
+        description=locale_str("amidakuji_template_share.description"),
     )
     async def command_share_templates(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
