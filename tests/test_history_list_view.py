@@ -129,12 +129,21 @@ async def test_history_list_view_filtering() -> None:
         page_size=3,
     )
 
-    view.apply_template_filter("テンプレートB")
+    view.apply_template_filter("テンプレートB", strict=True)
 
     embed = view.create_embed()
     assert len(embed.fields) == 1
     assert embed.description == "テンプレート: テンプレートB"
     assert embed.fields[0].name.startswith("テンプレートB")
+
+    view.apply_template_filter("テンプレ", strict=False)
+
+    search_embed = view.create_embed()
+    assert "検索キーワード: テンプレ" in (search_embed.description or "")
+    assert "候補:" in (search_embed.description or "")
+    for title in titles:
+        assert title in (search_embed.description or "")
+    assert len(search_embed.fields) == 3
 
     view.reset_template_filter()
     embed_after_reset = view.create_embed()

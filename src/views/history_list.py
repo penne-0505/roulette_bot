@@ -7,7 +7,8 @@ from typing import Iterable, Sequence
 import discord
 
 from db_manager import DBManager
-from models.model import AssignmentHistory, SelectionMode
+from models.model import AssignmentHistory, SelectionMode, Template
+from views.search_utils import search_templates
 
 
 class HistoryListView(discord.ui.View):
@@ -18,6 +19,7 @@ class HistoryListView(discord.ui.View):
     MAX_FETCH_LIMIT = 50
     PAGE_WINDOW = 5
     TEMPLATE_OPTION_LIMIT = 50
+    MAX_MATCHED_TITLES = 5
 
     def __init__(
         self,
@@ -31,7 +33,10 @@ class HistoryListView(discord.ui.View):
         self.db_manager = db_manager
         self.guild_id = guild_id
         self.page_size = self._normalize_page_size(page_size)
-        self.template_filter = self._normalize_template_title(template_title)
+        self.template_query = self._normalize_query(template_title)
+        self.strict_filter: bool = False
+        self.strict_template_title: str | None = None
+        self.matched_titles: list[str] = []
         self.current_page: int = 0
         self.histories: list[AssignmentHistory] = []
         self.available_templates: list[str] = []
@@ -80,32 +85,60 @@ class HistoryListView(discord.ui.View):
         )
 
     @staticmethod
-    def _normalize_template_title(value: str | None) -> str | None:
+    def _normalize_query(value: str | None) -> str | None:
         if value is None:
             return None
         normalized = value.strip()
         return normalized or None
 
     def reload_data(self) -> None:
-        fetch_limit = max(self.page_size, self.page_size * self.PAGE_WINDOW)
+        fetch_limit = max(self.page_size * self.PAGE_WINDOW, self.TEMPLATE_OPTION_LIMIT)
         fetch_limit = min(fetch_limit, self.MAX_FETCH_LIMIT)
 
-        self.histories = self.db_manager.get_recent_history(
+        base_histories = self.db_manager.get_recent_history(
             guild_id=self.guild_id,
-            template_title=self.template_filter,
             limit=fetch_limit,
         )
 
-        template_pool = self.db_manager.get_recent_history(
-            guild_id=self.guild_id,
-            limit=self.TEMPLATE_OPTION_LIMIT,
-        )
-        self.available_templates = self._collect_template_titles(template_pool)
-        if (
-            self.template_filter
-            and self.template_filter not in self.available_templates
-        ):
-            self.available_templates.insert(0, self.template_filter)
+        self.available_templates = self._collect_template_titles(base_histories)
+
+        candidate_templates = self._build_search_templates(base_histories)
+
+        matched_titles: list[str] = []
+        histories: list[AssignmentHistory]
+
+        if self.template_query:
+            entries = search_templates(candidate_templates, self.template_query)
+            if self.strict_filter and self.strict_template_title:
+                matched_titles = [self.strict_template_title]
+            else:
+                matched_titles = [
+                    entry.template.title for entry in entries[: self.MAX_MATCHED_TITLES]
+                ]
+            matched_titles = [title for title in matched_titles if title]
+            if not matched_titles and entries:
+                matched_titles = [entries[0].template.title]
+
+            aggregated: list[AssignmentHistory] = []
+            for title in matched_titles:
+                dedicated = self.db_manager.get_recent_history(
+                    guild_id=self.guild_id,
+                    template_title=title,
+                    limit=self.MAX_FETCH_LIMIT,
+                )
+                aggregated.extend(dedicated)
+            aggregated.sort(key=lambda item: item.created_at, reverse=True)
+            histories = aggregated[: self.MAX_FETCH_LIMIT]
+        else:
+            histories = base_histories
+
+        self.histories = histories
+        self.matched_titles = matched_titles
+
+        for title in reversed(matched_titles):
+            if title and title not in self.available_templates:
+                self.available_templates.insert(0, title)
+        self.available_templates = self.available_templates[:25]
 
         total_pages = self._total_pages()
         if total_pages == 0:
@@ -125,6 +158,24 @@ class HistoryListView(discord.ui.View):
             seen.add(title)
             titles.append(title)
         return titles[:25]
+
+    def _build_search_templates(
+        self, histories: Iterable[AssignmentHistory]
+    ) -> list[Template]:
+        seen: set[str] = set()
+        templates: list[Template] = []
+        for history in histories:
+            title = history.template_title
+            if not title or title in seen:
+                continue
+            seen.add(title)
+            templates.append(
+                Template(
+                    title=title,
+                    choices=list(history.choices or []),
+                )
+            )
+        return templates
 
     def _total_pages(self) -> int:
         if not self.histories:
@@ -154,18 +205,24 @@ class HistoryListView(discord.ui.View):
         self.current_page = 0
         self.reload_data()
 
-    def apply_template_filter(self, template_title: str | None) -> None:
-        normalized = self._normalize_template_title(template_title)
-        if self.template_filter == normalized:
+    def apply_template_filter(self, template_title: str | None, *, strict: bool = False) -> None:
+        normalized = self._normalize_query(template_title)
+        if normalized is None:
+            self.reset_template_filter()
             return
-        self.template_filter = normalized
+        self.template_query = normalized
+        self.strict_filter = strict
+        self.strict_template_title = normalized if strict else None
         self.current_page = 0
         self.reload_data()
 
     def reset_template_filter(self) -> None:
-        if self.template_filter is None:
+        if self.template_query is None and not self.strict_filter:
             return
-        self.template_filter = None
+        self.template_query = None
+        self.strict_filter = False
+        self.strict_template_title = None
+        self.matched_titles = []
         self.current_page = 0
         self.reload_data()
 
@@ -175,8 +232,19 @@ class HistoryListView(discord.ui.View):
             color=discord.Color.blue(),
             timestamp=datetime.datetime.now(datetime.timezone.utc),
         )
-        if self.template_filter:
-            embed.description = f"テンプレート: {self.template_filter}"
+        if self.template_query:
+            if self.strict_filter and self.matched_titles:
+                embed.description = f"テンプレート: {self.matched_titles[0]}"
+            else:
+                lines = [f"検索キーワード: {self.template_query}"]
+                if self.matched_titles:
+                    preview = ", ".join(self.matched_titles[:3])
+                    if len(self.matched_titles) > 3:
+                        preview += ", ..."
+                    lines.append(f"候補: {preview}")
+                else:
+                    lines.append("候補が見つかりませんでした。")
+                embed.description = "\n".join(lines)
         else:
             embed.description = "最新の抽選結果を表示します。"
 
@@ -257,12 +325,12 @@ class HistoryListView(discord.ui.View):
         self.next_button.disabled = (
             not has_histories or total_pages <= 1 or self.current_page >= total_pages - 1
         )
-        self.reset_filter_button.disabled = self.template_filter is None
+        self.reset_filter_button.disabled = self.template_query is None and not self.strict_filter
         self.template_select.refresh_options()
         self.page_size_select.refresh_options()
 
-        if not self.histories:
-            self.template_select.disabled = not self.available_templates
+        if not self.histories and not self.available_templates:
+            self.template_select.disabled = True
         self.reload_button.disabled = False
 
     async def on_timeout(self) -> None:  # pragma: no cover - UI timeout
@@ -305,14 +373,17 @@ class _TemplateFilterSelect(discord.ui.Select):
         self.refresh_options()
 
     def refresh_options(self) -> None:
-        options: list[discord.SelectOption] = []
         history_view = self._history_view
+        options: list[discord.SelectOption] = []
         for title in history_view.available_templates:
             options.append(
                 discord.SelectOption(
                     label=title,
                     value=title,
-                    default=history_view.template_filter == title,
+                    default=(
+                        history_view.strict_filter
+                        and history_view.strict_template_title == title
+                    ),
                 )
             )
         self.options = options
@@ -321,7 +392,7 @@ class _TemplateFilterSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction) -> None:
         value = self.values[0]
         history_view = self._history_view
-        history_view.apply_template_filter(value)
+        history_view.apply_template_filter(value, strict=True)
         await history_view.render(interaction)
 
 
@@ -344,14 +415,14 @@ class _TemplateFilterModal(discord.ui.Modal):
             placeholder="例: 2024年新年会",
             required=True,
             max_length=100,
-            default=view.template_filter or None,
+            default=view.template_query or None,
         )
         self.add_item(self.template_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         raw_value = str(self.template_input.value or "")
         history_view = self._history_view
-        history_view.apply_template_filter(raw_value)
+        history_view.apply_template_filter(raw_value, strict=False)
         await history_view.render(interaction)
 
 
@@ -367,8 +438,8 @@ class _HistoryPageSizeSelect(discord.ui.Select):
         self.refresh_options()
 
     def refresh_options(self) -> None:
-        options: list[discord.SelectOption] = []
         history_view = self._history_view
+        options: list[discord.SelectOption] = []
         for size in range(
             HistoryListView.PAGE_SIZE_MIN, HistoryListView.PAGE_SIZE_MAX + 1
         ):

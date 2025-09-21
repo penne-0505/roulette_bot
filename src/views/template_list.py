@@ -1,8 +1,4 @@
 from __future__ import annotations
-
-import re
-from dataclasses import dataclass
-from difflib import SequenceMatcher
 from enum import Enum, auto
 from math import ceil
 from typing import Iterable
@@ -10,6 +6,7 @@ from typing import Iterable
 import discord
 
 from models.model import Template
+from views.search_utils import TemplateSearchEntry, search_templates
 
 
 class TemplateCategory(Enum):
@@ -23,14 +20,6 @@ CATEGORY_LABELS = {
     TemplateCategory.GUILD: "サーバー共有",
     TemplateCategory.PUBLIC: "グローバル公開",
 }
-
-
-@dataclass
-class TemplateSearchEntry:
-    template: Template
-    score: float
-    matched_keywords: list[str]
-
 
 class TemplateListView(discord.ui.View):
     """テンプレートの一覧をカテゴリ別に切り替えて表示するビュー。"""
@@ -261,46 +250,9 @@ class TemplateListView(discord.ui.View):
                 "空白のみのキーワードは利用できません。", ephemeral=True
             )
             return
-        results = self._search_templates(query)
+        results = search_templates(self._all_templates(), query)
         self.enter_search_mode(query, results)
         await self.render(interaction)
-
-    def _search_templates(self, query: str) -> list[TemplateSearchEntry]:
-        normalized_query = query.lower()
-        keywords = [token for token in re.split(r"\s+", normalized_query) if token]
-        candidates = self._all_templates()
-        entries: list[TemplateSearchEntry] = []
-        for template in candidates:
-            title = template.title or ""
-            choices = template.choices or []
-            text_candidates = [title] + choices
-            lower_texts = [text.lower() for text in text_candidates]
-            concatenated = " ".join(lower_texts)
-            ratios = [self._fuzzy_ratio(normalized_query, text) for text in lower_texts]
-            ratios.append(self._fuzzy_ratio(normalized_query, concatenated))
-            base_score = max(ratios) if ratios else 0.0
-            substring_bonus = 0.25 if normalized_query and normalized_query in concatenated else 0.0
-            matched_keywords = [token for token in keywords if token in concatenated]
-            keyword_bonus = 0.15 * len(matched_keywords)
-            token_scores = [
-                max(self._fuzzy_ratio(token, text) for text in lower_texts)
-                if lower_texts
-                else 0.0
-                for token in keywords
-            ]
-            token_bonus = sum(token_scores) / max(len(keywords), 1) * 0.2 if keywords else 0.0
-            score = base_score + substring_bonus + keyword_bonus + token_bonus
-            if score <= 0.2 and not matched_keywords:
-                continue
-            entries.append(
-                TemplateSearchEntry(
-                    template=template,
-                    score=round(score, 4),
-                    matched_keywords=matched_keywords,
-                )
-            )
-        entries.sort(key=lambda entry: entry.score, reverse=True)
-        return entries
 
     def _all_templates(self) -> list[Template]:
         seen: set[str] = set()
@@ -313,12 +265,6 @@ class TemplateListView(discord.ui.View):
                 seen.add(identifier)
                 collected.append(template)
         return collected
-
-    @staticmethod
-    def _fuzzy_ratio(lhs: str, rhs: str) -> float:
-        if not lhs or not rhs:
-            return 0.0
-        return SequenceMatcher(a=lhs, b=rhs).ratio()
 
     async def close(self, interaction: discord.Interaction) -> None:
         self.stop()
