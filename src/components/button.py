@@ -57,7 +57,7 @@ class ApplyOptionsButton(DisableViewOnCallbackMixin, discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         choices = list(self.context.options_snapshot)
         template = Template(
-            title=self.context.history[AmidakujiState.TEMPLATE_TITLE_ENTERED],
+            title=str(self.context.history[AmidakujiState.TEMPLATE_TITLE_ENTERED]),
             choices=choices,
         )
 
@@ -84,7 +84,7 @@ class OptionMoveUpButton(discord.ui.Button):
     def __init__(self, context: CommandContext, *, row: int | None = None):
         super().__init__(
             style=discord.ButtonStyle.secondary,
-            label="上へ",
+            label="上へ移動",
             row=row,
         )
         self.context = context
@@ -102,7 +102,7 @@ class OptionMoveDownButton(discord.ui.Button):
     def __init__(self, context: CommandContext, *, row: int | None = None):
         super().__init__(
             style=discord.ButtonStyle.secondary,
-            label="下へ",
+            label="下へ移動",
             row=row,
         )
         self.context = context
@@ -182,7 +182,7 @@ class UseSharedTemplatesButton(DisableViewOnCallbackMixin, discord.ui.Button):
     disable_on_success = True
 
     def __init__(self, context: CommandContext):
-        super().__init__(style=discord.ButtonStyle.primary, label="共有テンプレート")
+        super().__init__(style=discord.ButtonStyle.primary, label="サーバー内のテンプレート")
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
@@ -203,7 +203,7 @@ class UsePublicTemplatesButton(DisableViewOnCallbackMixin, discord.ui.Button):
     disable_on_success = True
 
     def __init__(self, context: CommandContext):
-        super().__init__(style=discord.ButtonStyle.primary, label="公開テンプレート")
+        super().__init__(style=discord.ButtonStyle.primary, label="グローバルテンプレート")
         self.context = context
 
     async def callback(self, interaction: discord.Interaction):
