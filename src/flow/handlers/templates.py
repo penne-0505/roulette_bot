@@ -1,3 +1,4 @@
+"""テンプレート関連ステートのハンドラ群。"""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -5,6 +6,8 @@ from typing import Any
 
 import discord
 
+from application.dto import HistoryUsageResultDTO, TemplateCreationResultDTO
+from application.services.flow_service import FlowContext
 from components.modal import TitleEnterModal
 from domain import Template, TemplateScope
 from flow.actions import (
@@ -17,9 +20,8 @@ from flow.actions import (
 from flow.handlers.base import (
     BaseStateHandler,
     build_ephemeral_embed_action,
-    filter_private_templates,
-    resolve_db_manager,
-    resolve_user_context,
+    resolve_flow_service,
+    resolve_template_service,
 )
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
@@ -40,8 +42,13 @@ class UseExistingHandler(BaseStateHandler):
         context: CommandContext,
         services: Any,
     ) -> FlowAction | Sequence[FlowAction]:
-        user_context = resolve_user_context(context, services)
-        templates = filter_private_templates(user_context.user_data)
+        template_service = resolve_template_service(services)
+        user_id = context.interaction.user.id
+        guild_id = getattr(context.interaction, "guild_id", None)
+        templates = template_service.list_private_templates(
+            user_id=user_id,
+            guild_id=guild_id,
+        ).templates
 
         if not templates:
             return build_ephemeral_embed_action(
@@ -63,8 +70,13 @@ class DeleteTemplateModeHandler(BaseStateHandler):
         context: CommandContext,
         services: Any,
     ) -> FlowAction | Sequence[FlowAction]:
-        user_context = resolve_user_context(context, services)
-        templates = filter_private_templates(user_context.user_data)
+        template_service = resolve_template_service(services)
+        user_id = context.interaction.user.id
+        guild_id = getattr(context.interaction, "guild_id", None)
+        templates = template_service.list_private_templates(
+            user_id=user_id,
+            guild_id=guild_id,
+        ).templates
 
         if not templates:
             return build_ephemeral_embed_action(
@@ -83,18 +95,17 @@ class UseSharedTemplatesHandler(BaseStateHandler):
         context: CommandContext,
         services: Any,
     ) -> FlowAction | Sequence[FlowAction]:
-        user_context = resolve_user_context(context, services)
+        template_service = resolve_template_service(services)
+        guild_id = getattr(context.interaction, "guild_id", None)
 
-        if user_context.guild_id is None:
+        if guild_id is None:
             return build_ephemeral_embed_action(
                 title="共有テンプレートは利用できません",
                 description="サーバー内でのみ共有テンプレートを利用できます。",
                 color=discord.Color.red(),
             )
 
-        templates = (
-            user_context.user_data.shared_templates if user_context.user_data else []
-        )
+        templates = template_service.list_shared_templates(guild_id=guild_id).templates
 
         if not templates:
             return build_ephemeral_embed_action(
@@ -113,10 +124,8 @@ class UsePublicTemplatesHandler(BaseStateHandler):
         context: CommandContext,
         services: Any,
     ) -> FlowAction | Sequence[FlowAction]:
-        user_context = resolve_user_context(context, services)
-        templates = (
-            user_context.user_data.public_templates if user_context.user_data else []
-        )
+        template_service = resolve_template_service(services)
+        templates = template_service.list_public_templates().templates
 
         if not templates:
             return build_ephemeral_embed_action(
@@ -186,9 +195,12 @@ class SharedTemplateCopyHandler(BaseStateHandler):
         if not isinstance(template, Template):
             raise ValueError("Template is not selected")
 
-        db_manager = resolve_db_manager(context, services)
+        template_service = resolve_template_service(services)
         user_id = context.interaction.user.id
-        copied_template = db_manager.copy_shared_template_to_user(user_id, template)
+        copied_template = template_service.copy_shared_template(
+            user_id=user_id,
+            template=template,
+        ).template
 
         embed = discord.Embed(
             title="共有テンプレートをコピーしました",
@@ -218,8 +230,23 @@ class TemplateCreatedHandler(BaseStateHandler):
             return SendMessageAction(embed=embed, ephemeral=True)
 
         user_id = context.interaction.user.id
-        db_manager = resolve_db_manager(context, services)
-        db_manager.add_custom_template(user_id=user_id, template=template)
+        flow_service = resolve_flow_service(services)
+        creation_result: TemplateCreationResultDTO = flow_service.complete_template_creation(
+            user_id=user_id,
+            template=template,
+            context=FlowContext(
+                is_main_flow=AmidakujiState.COMMAND_EXECUTED in context.history
+            ),
+            interaction=context.interaction,
+        )
+
+        if creation_result.transition is not None:
+            transition = creation_result.transition
+            context.update_context(
+                state=transition.next_state,
+                result=transition.result,
+                interaction=transition.interaction,
+            )
 
         embed = discord.Embed(
             title="📝テンプレートを保存しました",
@@ -227,21 +254,10 @@ class TemplateCreatedHandler(BaseStateHandler):
             color=discord.Color.green(),
         )
 
-        is_main_flow = AmidakujiState.COMMAND_EXECUTED in context.history
-
-        actions: list[FlowAction] = [
+        return [
             DeferResponseAction(ephemeral=True),
             SendMessageAction(embed=embed, ephemeral=True, followup=True),
         ]
-
-        if is_main_flow:
-            context.update_context(
-                state=AmidakujiState.TEMPLATE_DETERMINED,
-                result=template,
-                interaction=context.interaction,
-            )
-
-        return actions
 
 
 class TemplateDeletedHandler(BaseStateHandler):
@@ -255,23 +271,24 @@ class TemplateDeletedHandler(BaseStateHandler):
             raise ValueError("Template title must be a string")
 
         user_id = context.interaction.user.id
-        db_manager = resolve_db_manager(context, services)
-        db_manager.delete_custom_template(
+        flow_service = resolve_flow_service(services)
+        deletion_result = flow_service.remove_template(
             user_id=user_id,
             template_title=template_title,
+            interaction=context.interaction,
+        )
+
+        transition = deletion_result.transition
+        context.update_context(
+            state=transition.next_state,
+            result=transition.result,
+            interaction=transition.interaction,
         )
 
         embed = discord.Embed(
             title="🗑️テンプレートを削除しました",
             description=f"タイトル: **{template_title}**",
             color=discord.Color.orange(),
-        )
-
-        current_interaction = context.interaction
-        context.update_context(
-            state=AmidakujiState.MODE_USE_EXISTING,
-            result=current_interaction,
-            interaction=current_interaction,
         )
 
         return [
@@ -286,34 +303,38 @@ class UseHistoryHandler(BaseStateHandler):
         context: CommandContext,
         services: Any,
     ) -> FlowAction | Sequence[FlowAction]:
-        user_context = resolve_user_context(context, services)
-        user_least_template = (
-            getattr(user_context.user_data, "least_template", None)
-            if user_context.user_data
-            else None
-        )
+        flow_service = resolve_flow_service(services)
+        user_id = context.interaction.user.id
+        guild_id = getattr(context.interaction, "guild_id", None)
 
-        if not user_least_template:
+        try:
+            result: HistoryUsageResultDTO = flow_service.use_recent_template(
+                user_id=user_id,
+                guild_id=guild_id,
+                interaction=context.interaction,
+            )
+        except LookupError:
             return build_ephemeral_embed_action(
                 title="エラーが発生しました🥲",
                 description="履歴が見つかりませんでした。",
                 color=discord.Color.red(),
             )
 
+        transition = result.transition
+        context.update_context(
+            state=transition.next_state,
+            result=transition.result,
+            interaction=transition.interaction,
+        )
+
         embed = discord.Embed(
-            title=user_least_template.title,
+            title=result.template.title,
             description="このテンプレートを使用します。",
         )
 
         first_interaction = context.history.get(AmidakujiState.COMMAND_EXECUTED)
         if not isinstance(first_interaction, discord.Interaction):
             raise ValueError("Initial interaction is not available")
-
-        context.update_context(
-            state=AmidakujiState.TEMPLATE_DETERMINED,
-            result=user_least_template,
-            interaction=context.interaction,
-        )
 
         return SendMessageAction(
             embed=embed,
@@ -333,9 +354,9 @@ class TemplateDeterminedHandler(BaseStateHandler):
         if not isinstance(template, Template):
             raise ValueError("Template is not selected")
 
+        template_service = resolve_template_service(services)
         user_id = context.interaction.user.id
-        db_manager = resolve_db_manager(context, services)
-        db_manager.set_least_template(user_id, template)
+        template_service.mark_recent_template(user_id=user_id, template=template)
 
         view = MemberSelectView(context=context)
         return SendViewAction(view=view)

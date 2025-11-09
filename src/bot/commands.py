@@ -10,6 +10,11 @@ import discord
 import psutil
 from discord.app_commands import locale_str
 
+from application import (
+    AmidakujiFlowService,
+    HistoryApplicationService,
+    TemplateApplicationService,
+)
 from data_interface import FlowController
 from domain.interfaces.repositories import TemplateRepository
 from domain import ResultEmbedMode, SelectionMode, Template, TemplateScope
@@ -127,7 +132,15 @@ def register_commands(client: "BotClient") -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         db_manager = require_db_manager(interaction)
-        services = SimpleNamespace(db=db_manager)
+        template_service = TemplateApplicationService(db_manager)
+        history_service = HistoryApplicationService(db_manager)
+        flow_service = AmidakujiFlowService(template_service)
+        services = SimpleNamespace(
+            db=db_manager,
+            template_service=template_service,
+            history_service=history_service,
+            amidakuji_flow_service=flow_service,
+        )
         context = CommandContext(
             interaction=interaction,
             state=AmidakujiState.COMMAND_EXECUTED,
@@ -148,7 +161,15 @@ def register_commands(client: "BotClient") -> None:
     )
     async def command_create_template(interaction: discord.Interaction) -> None:
         db_manager = require_db_manager(interaction)
-        services = SimpleNamespace(db=db_manager)
+        template_service = TemplateApplicationService(db_manager)
+        history_service = HistoryApplicationService(db_manager)
+        flow_service = AmidakujiFlowService(template_service)
+        services = SimpleNamespace(
+            db=db_manager,
+            template_service=template_service,
+            history_service=history_service,
+            amidakuji_flow_service=flow_service,
+        )
         context = CommandContext(
             interaction=interaction,
             state=AmidakujiState.MODE_CREATE_NEW,

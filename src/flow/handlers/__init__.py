@@ -1,12 +1,10 @@
 """ステートハンドラ群の集約モジュール。"""
 from .base import (
     BaseStateHandler,
-    UserContext,
     build_ephemeral_embed_action,
-    filter_private_templates,
-    get_db_manager_from_source,
-    resolve_db_manager,
-    resolve_user_context,
+    resolve_flow_service,
+    resolve_history_service,
+    resolve_template_service,
 )
 from .lifecycle import CancelledHandler
 from .members import MemberSelectedHandler
@@ -57,10 +55,8 @@ __all__ = [
     "UseHistoryHandler",
     "UsePublicTemplatesHandler",
     "UseSharedTemplatesHandler",
-    "UserContext",
     "build_ephemeral_embed_action",
-    "filter_private_templates",
-    "get_db_manager_from_source",
-    "resolve_db_manager",
-    "resolve_user_context",
+    "resolve_flow_service",
+    "resolve_history_service",
+    "resolve_template_service",
 ]

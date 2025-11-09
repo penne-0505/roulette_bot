@@ -3,15 +3,16 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any, NamedTuple
+from typing import Any
 
 import discord
 
-from domain import TemplateScope, UserInfo
-from domain.interfaces.repositories import TemplateRepository
+from application.services.flow_service import AmidakujiFlowService
+from application.services.history_service import HistoryApplicationService
+from application.services.template_service import TemplateApplicationService
 from flow.actions import FlowAction, SendMessageAction
 from models.context_model import CommandContext
-from models.state_model import AmidakujiState
+
 
 class BaseStateHandler(ABC):
     """状態ハンドラ共通の抽象クラス。"""
@@ -25,40 +26,46 @@ class BaseStateHandler(ABC):
         """現在のステートに応じたアクションを返す。"""
 
 
-def get_db_manager_from_source(source: Any) -> Any:
-    """安全に DBManager を取得するためのヘルパー。"""
-
-    return getattr(source, "db", None) if source is not None else None
-
-
-def resolve_db_manager(context: CommandContext, services: Any) -> TemplateRepository:
-    db_manager = get_db_manager_from_source(services)
-    if db_manager is None:
-        interaction_client = getattr(context.interaction, "client", None)
-        db_manager = get_db_manager_from_source(interaction_client)
-    if db_manager is None:
-        raise RuntimeError("DB manager is not available")
-    return db_manager
-
-
-class UserContext(NamedTuple):
-    """ユーザー/ギルド情報をまとめたコンテナ。"""
-
-    db_manager: TemplateRepository
-    user_data: UserInfo | None
-    guild_id: int | None
-
-
-def resolve_user_context(
-    context: CommandContext,
+def _resolve_service(
     services: Any,
-) -> UserContext:
-    db_manager = resolve_db_manager(context, services)
-    interaction = context.interaction
-    guild_id = getattr(interaction, "guild_id", None)
-    user_id = getattr(interaction.user, "id", None)
-    user_data = db_manager.get_user(user_id, guild_id=guild_id) if user_id else None
-    return UserContext(db_manager=db_manager, user_data=user_data, guild_id=guild_id)
+    candidate_names: tuple[str, ...],
+    expected_type: type,
+) -> Any:
+    for name in candidate_names:
+        candidate = getattr(services, name, None)
+        if candidate is not None:
+            return candidate
+    raise RuntimeError(f"{expected_type.__name__} が利用できません。")
+
+
+def resolve_template_service(services: Any) -> TemplateApplicationService:
+    """テンプレートユースケースサービスを解決する。"""
+
+    return _resolve_service(
+        services,
+        ("template_service",),
+        TemplateApplicationService,
+    )
+
+
+def resolve_history_service(services: Any) -> HistoryApplicationService:
+    """履歴ユースケースサービスを解決する。"""
+
+    return _resolve_service(
+        services,
+        ("history_service",),
+        HistoryApplicationService,
+    )
+
+
+def resolve_flow_service(services: Any) -> AmidakujiFlowService:
+    """フローオーケストレーションサービスを解決する。"""
+
+    return _resolve_service(
+        services,
+        ("amidakuji_flow_service",),
+        AmidakujiFlowService,
+    )
 
 
 def build_ephemeral_embed_action(
@@ -73,24 +80,10 @@ def build_ephemeral_embed_action(
     return SendMessageAction(embed=embed, ephemeral=True)
 
 
-def filter_private_templates(user_info: UserInfo | None) -> list:
-    """ユーザー所有テンプレートのうち PRIVATE のものだけを返す。"""
-
-    if user_info is None:
-        return []
-    return [
-        template
-        for template in getattr(user_info, "custom_templates", [])
-        if template.scope is TemplateScope.PRIVATE
-    ]
-
-
 __all__ = [
     "BaseStateHandler",
-    "UserContext",
     "build_ephemeral_embed_action",
-    "filter_private_templates",
-    "get_db_manager_from_source",
-    "resolve_db_manager",
-    "resolve_user_context",
+    "resolve_flow_service",
+    "resolve_history_service",
+    "resolve_template_service",
 ]
