@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, TypeVar
-
+from typing import TypeVar
 
 import discord
 
@@ -11,9 +10,6 @@ from models.context_model import CommandContext
 from models.state_model import AmidakujiState
 from components.mixins import DisableViewOnCallbackMixin
 
-if TYPE_CHECKING:
-    from domain.interfaces.repositories import TemplateRepository
-
 
 def _get_flow(context: CommandContext):
     services = context.services
@@ -21,19 +17,6 @@ def _get_flow(context: CommandContext):
     if flow is None:
         raise RuntimeError("Flow controller is not available")
     return flow
-
-
-def _get_db_manager(
-    context: CommandContext, interaction: discord.Interaction
-) -> "TemplateRepository":
-    services = context.services
-    db_manager = getattr(services, "db", None) if services is not None else None
-    if db_manager is None:
-        client = getattr(interaction, "client", None)
-        db_manager = getattr(client, "db", None) if client is not None else None
-    if db_manager is None:
-        raise RuntimeError("DB manager is not available")
-    return db_manager
 
 
 class _TemplateSelectBase(discord.ui.Select):

@@ -52,9 +52,9 @@
 - 認証情報が取得できない場合、アプリケーションは起動時に例外を発生させます。【F:src/services/app_context.py†L13-L37】
 
 ### 5. Firestore データ構造の確認
-アプリケーションは Firestore 内で以下のコレクションを使用します。【src/db_manager.py†L35-L189】
+アプリケーションは Firestore 内で以下のコレクションを使用します。【src/db/constants.py†L3-L16】
 - `users`: コマンドを実行した Discord ユーザーを記録します。
-- `info`: 初期テンプレートや表示設定（例: `default_templates`, `embed_mode`）を保存します。Bot 起動時に `_init_default_templates()` が呼ばれ、パブリックテンプレートが自動的に書き込まれます。【src/main.py†L48-L55】【src/db_manager.py†L300-L342】
+- `info`: 初期テンプレートや表示設定（例: `default_templates`, `embed_mode`）を保存します。Bot 起動時に `ensure_default_templates()` が呼ばれ、パブリックテンプレートが自動的に書き込まれます。【src/presentation/discord/client.py†L48-L60】【src/infrastructure/firestore/template_repository.py†L209-L308】
 - `shared_templates`: 共有テンプレートの保存に使用します。
 - `history`: 抽選結果の履歴を保存します。
 

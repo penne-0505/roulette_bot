@@ -15,7 +15,7 @@
 ## テンプレートおよび履歴機能
 
 - `test_flow_handlers.py` はテンプレート選択ビュー、オプション編集、共有テンプレートコピーなどハンドラーごとの返却アクションを検証し、UI と状態の整合性を担保します。【tests/test_flow_handlers.py†L62-L200】
-- `test_db_manager.py` は Firestore リポジトリとの連携をモックし、初期化時のドキュメント生成、テンプレート・履歴の読み書きを確認します。【tests/test_db_manager.py†L10-L242】
+- `test_firestore_template_repository.py` は Firestore リポジトリとの連携をモックし、初期化時のドキュメント生成、テンプレート・履歴の読み書きを確認します。【tests/test_firestore_template_repository.py†L1-L220】
 
 ## 抽選ロジック
 

@@ -7,9 +7,9 @@ from typing import Iterable, List
 
 import discord
 
-from db_manager import (
+from db.constants import (
     COLLECTION_SENTINEL_DOCUMENT_ID,
-    REQUIRED_COLLECTIONS as DB_REQUIRED_COLLECTIONS,
+    REQUIRED_COLLECTIONS as FIRESTORE_REQUIRED_COLLECTIONS,
 )
 from domain.interfaces.repositories import TemplateRepository
 from utils import ERROR, INFO, SUCCESS, WARN, green, red, yellow
@@ -35,7 +35,7 @@ class CheckResult:
 class StartupSelfCheck:
     """Run diagnostics required for safe bot execution."""
 
-    REQUIRED_COLLECTIONS: tuple[str, ...] = DB_REQUIRED_COLLECTIONS
+    REQUIRED_COLLECTIONS: tuple[str, ...] = FIRESTORE_REQUIRED_COLLECTIONS
 
     def __init__(self, db_manager: TemplateRepository) -> None:
         self._db_manager = db_manager

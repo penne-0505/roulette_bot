@@ -59,7 +59,9 @@ def test_resolve_fetches_from_http_when_not_a_path() -> None:
         return response
 
     resolved = resolve_firebase_credentials(
-        "https://example.com/firebase.json", http_get=fake_get
+        "https://example.com/firebase.json",
+        http_get=fake_get,
+        enable_cache=False,
     )
 
     assert resolved == payload

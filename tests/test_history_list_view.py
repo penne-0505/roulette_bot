@@ -7,11 +7,11 @@ from typing import List
 import pytest
 
 from domain import AssignmentEntry, AssignmentHistory, SelectionMode
-from views.history_list import HistoryListView
+from presentation.discord.views.history_list import HistoryListView
 
 
 @dataclass
-class _DummyDBManager:
+class _DummyHistoryService:
     histories: List[AssignmentHistory]
 
     def get_recent_history(
@@ -82,10 +82,10 @@ async def test_history_list_view_initial_state() -> None:
             entries=_build_entries(10),
         ),
     ]
-    db_manager = _DummyDBManager(histories)
+    history_service = _DummyHistoryService(histories)
 
     view = HistoryListView(
-        db_manager=db_manager,
+        history_service=history_service,
         guild_id=123,
         page_size=2,
     )
@@ -121,10 +121,10 @@ async def test_history_list_view_filtering() -> None:
         )
         for idx, title in enumerate(titles)
     ]
-    db_manager = _DummyDBManager(histories)
+    history_service = _DummyHistoryService(histories)
 
     view = HistoryListView(
-        db_manager=db_manager,
+        history_service=history_service,
         guild_id=123,
         page_size=3,
     )

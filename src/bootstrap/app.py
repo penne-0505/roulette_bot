@@ -13,7 +13,7 @@ from app.logging import configure_logging
 from domain.interfaces.repositories import TemplateRepository
 from presentation.discord.client import BotClient
 from presentation.discord.services import DiscordCommandUseCases
-from services.app_context import create_db_manager
+from services.app_context import create_template_repository
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +25,7 @@ class BootstrapContext:
 
 
 def _default_repository_factory(config: AppConfig) -> TemplateRepository:
-    return create_db_manager(config.firebase.credentials_reference)
+    return create_template_repository(config.firebase.credentials_reference)
 
 
 class ApplicationModule(Module):

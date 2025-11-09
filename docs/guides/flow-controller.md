@@ -6,7 +6,7 @@
 
 1. `CommandContext` を初期化して、実行中のインタラクション・現在の状態・利用サービスを束ねます。【src/models/context_model.py†L12-L52】
 2. `FlowController` にコンテキストとサービス束を渡し、状態ごとのハンドラーを登録します。【src/data_interface.py†L31-L83】
-3. ビューやボタンのコールバックで `dispatch` を呼び出し、遷移後に返却された `FlowAction` 群を実行します。【src/data_interface.py†L85-L121】【src/views/view.py†L82-L138】
+3. ビューやボタンのコールバックで `dispatch` を呼び出し、遷移後に返却された `FlowAction` 群を実行します。【src/data_interface.py†L85-L121】【src/presentation/discord/views/view.py†L82-L138】
 
 ```python
 # 代表的な利用例
@@ -37,7 +37,7 @@ await flow.dispatch(
 
 ## ビューからの呼び出し
 
-`ModeSelectionView` や各 UI コンポーネントのコールバックでは、インタラクションを `CommandContext` に設定してから `FlowController.dispatch` を呼び出します。これにより、同一コンテキストで結果履歴が記録され、後続のハンドラーが値を参照できます。【src/views/view.py†L60-L140】
+`ModeSelectionView` や各 UI コンポーネントのコールバックでは、インタラクションを `CommandContext` に設定してから `FlowController.dispatch` を呼び出します。これにより、同一コンテキストで結果履歴が記録され、後続のハンドラーが値を参照できます。【src/presentation/discord/views/view.py†L60-L140】
 
 ## エラーハンドリング
 

@@ -1,11 +1,10 @@
 import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-from db_manager import (
+
+from db.constants import (
     COLLECTION_SENTINEL_DOCUMENT_ID,
-    DBManager,
     REQUIRED_COLLECTIONS,
-    SharedTemplateRepository,
 )
 from domain import (
     Pair,
@@ -16,14 +15,16 @@ from domain import (
     TemplateScope,
     UserInfo,
 )
+from infrastructure.firestore.repositories import SharedTemplateRepository
+from infrastructure.firestore.template_repository import FirestoreTemplateRepository
 
 
-def reset_manager() -> None:
-    DBManager.set_global_instance(None)
+def make_repository() -> FirestoreTemplateRepository:
+    return FirestoreTemplateRepository()
+
 
 def test_get_embed_mode_initializes_missing_document():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     mock_info_repository = MagicMock()
     mock_info_repository.read_document.return_value = None
@@ -33,10 +34,7 @@ def test_get_embed_mode_initializes_missing_document():
     manager.history_repository = MagicMock()
     manager.db = object()
 
-    try:
-        mode = manager.get_embed_mode()
-    finally:
-        reset_manager()
+    mode = manager.get_embed_mode()
 
     assert mode == "compact"
     mock_info_repository.create_document.assert_called_once_with(
@@ -45,8 +43,7 @@ def test_get_embed_mode_initializes_missing_document():
 
 
 def test_set_embed_mode_updates_document():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     mock_info_repository = MagicMock()
     mock_info_repository.read_document.return_value = {"embed_mode": "compact"}
@@ -56,10 +53,7 @@ def test_set_embed_mode_updates_document():
     manager.history_repository = MagicMock()
     manager.db = object()
 
-    try:
-        manager.set_embed_mode(ResultEmbedMode.DETAILED)
-    finally:
-        reset_manager()
+    manager.set_embed_mode(ResultEmbedMode.DETAILED)
 
     mock_info_repository.create_document.assert_called_once_with(
         "embed_mode", {"embed_mode": "detailed"}
@@ -67,11 +61,9 @@ def test_set_embed_mode_updates_document():
 
 
 def test_get_default_templates_initializes_when_missing_document():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     mock_info_repository = MagicMock()
-    # First call returns None to simulate missing document, second call returns initialized data
     mock_info_repository.read_document.side_effect = [None, {"default_templates": []}]
 
     manager.info_repository = mock_info_repository
@@ -79,10 +71,7 @@ def test_get_default_templates_initializes_when_missing_document():
     manager.history_repository = MagicMock()
     manager.db = object()
 
-    try:
-        templates = manager.get_default_templates()
-    finally:
-        reset_manager()
+    templates = manager.get_default_templates()
 
     assert templates == []
     mock_info_repository.create_document.assert_called_once()
@@ -99,8 +88,7 @@ def _make_document_ref(*, exists: bool) -> MagicMock:
 
 
 def test_ensure_required_collections_creates_sentinel_documents():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     collection_refs: dict[str, MagicMock] = {}
     document_refs: dict[str, MagicMock] = {}
@@ -121,10 +109,7 @@ def test_ensure_required_collections_creates_sentinel_documents():
     manager.user_repository = MagicMock()
     manager.history_repository = MagicMock()
 
-    try:
-        manager.ensure_required_collections()
-    finally:
-        reset_manager()
+    manager.ensure_required_collections()
 
     assert set(collection_refs) == set(REQUIRED_COLLECTIONS)
     for document_ref in document_refs.values():
@@ -132,8 +117,7 @@ def test_ensure_required_collections_creates_sentinel_documents():
 
 
 def test_ensure_required_collections_skips_existing_sentinel():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     document_refs: dict[str, MagicMock] = {}
 
@@ -152,10 +136,7 @@ def test_ensure_required_collections_skips_existing_sentinel():
     manager.user_repository = MagicMock()
     manager.history_repository = MagicMock()
 
-    try:
-        manager.ensure_required_collections()
-    finally:
-        reset_manager()
+    manager.ensure_required_collections()
 
     assert set(document_refs) == set(REQUIRED_COLLECTIONS)
     for document_ref in document_refs.values():
@@ -185,8 +166,7 @@ def test_shared_template_repository_list_skips_sentinel():
 
 
 def test_get_user_includes_shared_and_public_templates():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     mock_user_repository = MagicMock()
     mock_user_repository.read_document.return_value = {
@@ -230,10 +210,7 @@ def test_get_user_includes_shared_and_public_templates():
     manager.history_repository = MagicMock()
     manager.db = object()
 
-    try:
-        user = manager.get_user(1, guild_id=999)
-    finally:
-        reset_manager()
+    user = manager.get_user(1, guild_id=999)
 
     assert user is not None
     assert len(user.custom_templates) == 1
@@ -245,8 +222,7 @@ def test_get_user_includes_shared_and_public_templates():
 
 
 def test_copy_shared_template_to_user_generates_unique_title():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     existing_template = Template(
         title="Guild Shared",
@@ -265,19 +241,16 @@ def test_copy_shared_template_to_user_generates_unique_title():
         scope=TemplateScope.GUILD,
     )
 
-    try:
-        copied = manager.copy_shared_template_to_user(1, shared_template)
-    finally:
-        reset_manager()
+    copied = manager.copy_shared_template_to_user(1, shared_template)
 
     manager.set_user.assert_called_once_with(user)
     appended_template = user.custom_templates[-1]
     assert appended_template.title == "Guild Shared (2)"
     assert copied.title == "Guild Shared (2)"
 
+
 def test_get_selection_mode_initializes_missing_document():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     mock_info_repository = MagicMock()
     mock_info_repository.read_document.return_value = None
@@ -287,10 +260,7 @@ def test_get_selection_mode_initializes_missing_document():
     manager.history_repository = MagicMock()
     manager.db = object()
 
-    try:
-        mode = manager.get_selection_mode()
-    finally:
-        reset_manager()
+    mode = manager.get_selection_mode()
 
     assert mode == SelectionMode.RANDOM.value
     mock_info_repository.create_document.assert_called_once_with(
@@ -299,8 +269,7 @@ def test_get_selection_mode_initializes_missing_document():
 
 
 def test_save_history_uses_history_repository():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     mock_history_repository = MagicMock()
     manager.history_repository = mock_history_repository
@@ -312,15 +281,12 @@ def test_save_history_uses_history_repository():
     user = SimpleNamespace(id=1, display_name="Tester", name="Tester")
     pairs = PairList(pairs=[Pair(user=user, choice="Top")])
 
-    try:
-        manager.save_history(
-            guild_id=42,
-            template=template,
-            pairs=pairs,
-            selection_mode=SelectionMode.RANDOM,
-        )
-    finally:
-        reset_manager()
+    manager.save_history(
+        guild_id=42,
+        template=template,
+        pairs=pairs,
+        selection_mode=SelectionMode.RANDOM,
+    )
 
     mock_history_repository.add_entry.assert_called_once()
     saved_data = mock_history_repository.add_entry.call_args.kwargs.get("data")
@@ -333,8 +299,7 @@ def test_save_history_uses_history_repository():
 
 
 def test_get_recent_history_converts_documents():
-    reset_manager()
-    manager = DBManager.get_instance()
+    manager = make_repository()
 
     timestamp = datetime.datetime.now(datetime.timezone.utc)
     mock_history_repository = MagicMock()
@@ -356,10 +321,7 @@ def test_get_recent_history_converts_documents():
     manager.user_repository = object()
     manager.db = object()
 
-    try:
-        histories = manager.get_recent_history(guild_id=1)
-    finally:
-        reset_manager()
+    histories = manager.get_recent_history(guild_id=1)
 
     assert len(histories) == 1
     history = histories[0]

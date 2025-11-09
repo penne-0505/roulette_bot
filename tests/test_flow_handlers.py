@@ -43,7 +43,7 @@ from flow.handlers import (
 )
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
-from views.view import (
+from presentation.discord.views.view import (
     ApplyOptionsView,
     DeleteTemplateView,
     MemberSelectView,

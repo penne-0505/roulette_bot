@@ -10,16 +10,17 @@
 
 ## Bot レイヤー
 
-### `src/bot/client.py`
-- Discord クライアントの具象クラス `BotClient` を定義し、翻訳機能のセットアップや `StartupSelfCheck` を起動時に実行します。`src/bot/client.py:26-80`
-- Firestore 初期化後に既定テンプレートを整備し、セルフチェックの失敗を検知したら安全にシャットダウンします。`src/bot/client.py:46-53`
+### `src/presentation/discord/client.py`
+- Discord クライアントの具象クラス `BotClient` を定義し、翻訳設定やスラッシュコマンド同期、`StartupSelfCheck` の実行までを担います。`src/presentation/discord/client.py:25-95`
+- Firestore テンプレートリポジトリを受け取り、既定テンプレート整備やユーザー初期化を起動時/コマンド完了時に処理します。`src/presentation/discord/client.py:42-95`
 
-### `src/bot/commands.py`
-- `register_commands()` で全てのスラッシュコマンドを `CommandTree` に登録し、DB 依存性の取得処理を `require_db_manager()` に集約しています。`src/bot/commands.py:24-34`
-- `/ping` やあみだくじ系のコマンドをモジュール内にまとめ、レスポンス組み立て・フロー連携を明示しました。`src/bot/commands.py:35-200`
+### `src/presentation/discord/commands/registry.py`
+- `register_commands()` で `/ping` や あみだくじ関連コマンドを `CommandTree` に登録し、`CommandRuntimeServices` を介してユースケースやリポジトリを解決します。`src/presentation/discord/commands/registry.py:1-383`
+- 各コマンドはビューやフローを生成して `interaction.followup.send` へ統一し、エフェメラル応答やエラーハンドリングの方針を揃えています。`src/presentation/discord/commands/registry.py:64-383`
 
-### `src/bot/config.py`
-- `.env` または環境変数から Discord Bot トークンを読み込み、フォーマット検査とサマリーログ出力を行います。`src/bot/config.py:14-51`
+### `src/app/config.py`
+- `.env` または環境変数から Discord トークンや Firebase 認証参照を読み込み、バリデーション・整形・サマリーログ出力を行います。`src/app/config.py:14-101`
+- `AppConfig` を通じて設定値を型安全に参照できるようにし、DI モジュールで共有します。`src/app/config.py:34-101`
 
 ## フロー制御層
 
@@ -40,8 +41,8 @@
 
 ## ビュー / UI コンポーネント層
 
-### `src/views/view.py`
-- コマンド起動時に提示する `ModeSelectionView` などのビューを定義し、ユーザー操作に応じて `FlowController` を呼び出します。`src/views/view.py:7-160`
+### `src/presentation/discord/views/view.py`
+- コマンド起動時に提示する `ModeSelectionView` などのビューを定義し、ユーザー操作に応じて `FlowController` を呼び出します。`src/presentation/discord/views/view.py:35-160`
 
 ### `src/components/`
 - `button.py`、`select.py`、`modal.py` に UI コンポーネントを分割し、バリデーションや入力保持をカプセル化しています。`src/components/button.py:5-200` `src/components/select.py:5-180` `src/components/modal.py:5-140`
@@ -49,18 +50,20 @@
 ## サービス層
 
 ### `src/services/app_context.py`
-- Firebase 認証情報のロードと `DBManager` の初期化を担うユーティリティ関数を提供します。`src/services/app_context.py:9-31`
+- Firebase 認証情報のロードと `FirestoreTemplateRepository` の初期化を担うユーティリティ関数を提供します。`src/services/app_context.py:1-46`
 
 ### `src/services/startup_check.py`
 - 起動時セルフチェック `StartupSelfCheck` を実装し、Discord 認証・Firestore 接続・必須コレクションの整備状況を検証します。`src/services/startup_check.py:35-181`
 
 ## データアクセス層
 
-### `src/db_manager.py`
-- Firestore アプリ・リポジトリのシングルトン管理、テンプレートや履歴に関する高水準 API をまとめています。`src/db_manager.py:46-517`
+### `src/infrastructure/firestore/template_repository.py`
+- Firestore クライアントと各種リポジトリを束ね、テンプレート/履歴/ユーザー/設定の高水準 API を提供します。`src/infrastructure/firestore/template_repository.py:1-580`
+- 既定テンプレートの注入、埋め込み・抽選モードの永続化、共有テンプレート検索、履歴保存など永続化ロジックを集約しています。`src/infrastructure/firestore/template_repository.py:209-580`
 
-### `src/db/repositories.py`
-- Firestore の各コレクション (`users` / `info` / `shared_templates` / `history`) を操作するリポジトリを提供します。`src/db/repositories.py:17-139`
+### `src/infrastructure/firestore/repositories.py`
+- Firestore の各コレクション (`users` / `info` / `shared_templates` / `history`) を操作するリポジトリクラスを提供します。`src/infrastructure/firestore/repositories.py:8-182`
+- センチネルドキュメントのスキップやページングをハンドルし、TemplateRepository からの呼び出しを単純化します。`src/infrastructure/firestore/repositories.py:96-168`
 
 ### `src/db/serializers.py`
 - Firestore ドキュメントとドメインモデル間の変換処理やテンプレート正規化を担います。`src/db/serializers.py:17-134`

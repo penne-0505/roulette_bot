@@ -19,8 +19,8 @@
 - **P1**: ハンドラー間の重複ロジック（テンプレート検索やバリデーション）を共通ヘルパーに抽出。完了条件: `flow/handlers.py` の重複コードが 20 行以上削減される。【src/flow/handlers.py†L1-L400】
 
 ## データアクセス層
-- **P1**: `HistoryRepository.fetch_recent` にページネーションとエラーハンドリングを追加。完了条件: 例外発生時に `CheckResult` に相当する構造で通知できるようにする。【src/db_manager.py†L86-L140】
-- **P2**: Firestore のクエリ頻度を最適化するため、簡易キャッシュレイヤーを `DBManager` に導入。完了条件: `DBManager` に TTL 付きキャッシュが追加され、主要クエリがキャッシュ経由で実行可能になる。
+- **P1**: `HistoryRepository.fetch_recent` にページネーションとエラーハンドリングを追加。完了条件: 例外発生時に `CheckResult` に相当する構造で通知できるようにする。【src/infrastructure/firestore/repositories.py†L110-L168】
+- **P2**: Firestore のクエリ頻度を最適化するため、簡易キャッシュレイヤーを `FirestoreTemplateRepository` に導入。完了条件: Repository に TTL 付きキャッシュが追加され、主要クエリがキャッシュ経由で実行可能になる。
 
 ## services
 - **P1**: `load_firebase_credentials` が HTTP ダウンロードしたファイルをローカルにキャッシュするよう修正。完了条件: 連続起動時に再ダウンロードされないことを確認する。【src/services/app_context.py†L12-L27】
