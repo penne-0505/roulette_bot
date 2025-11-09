@@ -62,7 +62,7 @@ async def test_dispatch_runs_handler_and_updates_context(controller):
     action = DummyAction()
     handler = DummyHandler(action)
 
-    controller._handlers[AmidakujiState.MODE_CREATE_NEW] = handler
+    controller.register_handler(AmidakujiState.MODE_CREATE_NEW, handler)
 
     await controller.dispatch(
         AmidakujiState.MODE_CREATE_NEW,

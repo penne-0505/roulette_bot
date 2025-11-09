@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import discord
@@ -35,6 +36,64 @@ from presentation.discord.views.view import (
     SharedTemplateSelectView,
 )
 
+@dataclass(frozen=True, slots=True)
+class _TemplateListScenario:
+    view_factory: type[discord.ui.View]
+    empty_title: str
+    empty_description: str
+    color: discord.Color
+
+
+_PRIVATE_TEMPLATE_SCENARIO = _TemplateListScenario(
+    view_factory=SelectTemplateView,
+    empty_title="テンプレートが見つかりません",
+    empty_description=(
+        "まずは `/amidakuji_template_create` でテンプレートを作成するか、"
+        "共有/公開テンプレートを利用してください。"
+    ),
+    color=discord.Color.orange(),
+)
+
+_DELETE_TEMPLATE_SCENARIO = _TemplateListScenario(
+    view_factory=DeleteTemplateView,
+    empty_title="エラーが発生しました",
+    empty_description="削除できるテンプレートが見つかりませんでした。",
+    color=discord.Color.red(),
+)
+
+_SHARED_TEMPLATE_SCENARIO = _TemplateListScenario(
+    view_factory=SharedTemplateSelectView,
+    empty_title="共有テンプレートが見つかりません",
+    empty_description=(
+        "共有テンプレートが登録されていません。他のメンバーに作成・共有してもらうか、"
+        "あなたが共有することもできます。"
+    ),
+    color=discord.Color.orange(),
+)
+
+_PUBLIC_TEMPLATE_SCENARIO = _TemplateListScenario(
+    view_factory=PublicTemplateSelectView,
+    empty_title="公開テンプレートが見つかりません",
+    empty_description="利用可能な公開テンプレートがありません。",
+    color=discord.Color.orange(),
+)
+
+
+def _render_template_list(
+    context: CommandContext,
+    templates: list[Template],
+    scenario: _TemplateListScenario,
+) -> FlowAction:
+    if not templates:
+        return build_ephemeral_embed_action(
+            title=scenario.empty_title,
+            description=scenario.empty_description,
+            color=scenario.color,
+        )
+
+    view = scenario.view_factory(context=context, templates=templates)
+    return SendViewAction(view=view)
+
 
 class UseExistingHandler(BaseStateHandler):
     async def handle(
@@ -50,18 +109,7 @@ class UseExistingHandler(BaseStateHandler):
             guild_id=guild_id,
         ).templates
 
-        if not templates:
-            return build_ephemeral_embed_action(
-                title="テンプレートが見つかりません",
-                description=(
-                    "まずは `/amidakuji_template_create` でテンプレートを作成するか、"
-                    "共有/公開テンプレートを利用してください。"
-                ),
-                color=discord.Color.orange(),
-            )
-
-        view = SelectTemplateView(context=context, templates=templates)
-        return SendViewAction(view=view)
+        return _render_template_list(context, templates, _PRIVATE_TEMPLATE_SCENARIO)
 
 
 class DeleteTemplateModeHandler(BaseStateHandler):
@@ -78,15 +126,7 @@ class DeleteTemplateModeHandler(BaseStateHandler):
             guild_id=guild_id,
         ).templates
 
-        if not templates:
-            return build_ephemeral_embed_action(
-                title="エラーが発生しました",
-                description="削除できるテンプレートが見つかりませんでした。",
-                color=discord.Color.red(),
-            )
-
-        view = DeleteTemplateView(context=context, templates=templates)
-        return SendViewAction(view=view)
+        return _render_template_list(context, templates, _DELETE_TEMPLATE_SCENARIO)
 
 
 class UseSharedTemplatesHandler(BaseStateHandler):
@@ -107,15 +147,7 @@ class UseSharedTemplatesHandler(BaseStateHandler):
 
         templates = template_service.list_shared_templates(guild_id=guild_id).templates
 
-        if not templates:
-            return build_ephemeral_embed_action(
-                title="共有テンプレートが見つかりません",
-                description="共有テンプレートが登録されていません。他のメンバーに作成・共有してもらうか、あなたが共有することもできます。",
-                color=discord.Color.orange(),
-            )
-
-        view = SharedTemplateSelectView(context=context, templates=templates)
-        return SendViewAction(view=view)
+        return _render_template_list(context, templates, _SHARED_TEMPLATE_SCENARIO)
 
 
 class UsePublicTemplatesHandler(BaseStateHandler):
@@ -127,15 +159,7 @@ class UsePublicTemplatesHandler(BaseStateHandler):
         template_service = resolve_template_service(services)
         templates = template_service.list_public_templates().templates
 
-        if not templates:
-            return build_ephemeral_embed_action(
-                title="公開テンプレートが見つかりません",
-                description="利用可能な公開テンプレートがありません。",
-                color=discord.Color.orange(),
-            )
-
-        view = PublicTemplateSelectView(context=context, templates=templates)
-        return SendViewAction(view=view)
+        return _render_template_list(context, templates, _PUBLIC_TEMPLATE_SCENARIO)
 
 
 class CreateNewHandler(BaseStateHandler):
