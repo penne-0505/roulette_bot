@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Type, TypeAlias, Union, get_origin
 
 import discord
 
-from models.model import PairList, Template
+from domain import PairList, Template
 from models.state_model import AmidakujiState
 
 

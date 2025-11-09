@@ -6,7 +6,7 @@ from typing import List
 
 import pytest
 
-from models.model import AssignmentEntry, AssignmentHistory, SelectionMode
+from domain import AssignmentEntry, AssignmentHistory, SelectionMode
 from views.history_list import HistoryListView
 
 

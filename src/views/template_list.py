@@ -5,7 +5,7 @@ from typing import Iterable
 
 import discord
 
-from models.model import Template
+from domain import Template
 from views.search_utils import TemplateSearchEntry, search_templates
 
 

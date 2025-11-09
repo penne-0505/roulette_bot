@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, TypeVar
 
 import discord
 
+from domain import Template
 from models.context_model import CommandContext
-from models.model import Template
 from models.state_model import AmidakujiState
 from components.mixins import DisableViewOnCallbackMixin
 
 if TYPE_CHECKING:
-    from db_manager import DBManager
+    from domain.interfaces.repositories import TemplateRepository
 
 
 def _get_flow(context: CommandContext):
@@ -23,7 +23,9 @@ def _get_flow(context: CommandContext):
     return flow
 
 
-def _get_db_manager(context: CommandContext, interaction: discord.Interaction) -> "DBManager":
+def _get_db_manager(
+    context: CommandContext, interaction: discord.Interaction
+) -> "TemplateRepository":
     services = context.services
     db_manager = getattr(services, "db", None) if services is not None else None
     if db_manager is None:

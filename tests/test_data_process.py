@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import data_process
 from data_process import create_embeds_from_pairs, create_pair_from_list
-from models.model import Pair, PairList, ResultEmbedMode, SelectionMode
+from domain import Pair, PairList, ResultEmbedMode, SelectionMode
 
 
 class DummyAsset:

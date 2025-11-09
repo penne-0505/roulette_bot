@@ -3,7 +3,7 @@ from __future__ import annotations
 import discord
 
 from db_manager import DBManager
-from models.model import SelectionMode
+from domain import SelectionMode
 
 
 def _mode_label(mode: SelectionMode) -> str:

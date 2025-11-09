@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Iterable
 
-from models.model import Template
+from domain import Template
 
 
 @dataclass

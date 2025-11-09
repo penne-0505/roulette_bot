@@ -28,8 +28,8 @@ from components.select import (
     TemplateDeleteSelect,
     TemplateSelect,
 )
+from domain import Template
 from models.context_model import CommandContext
-from models.model import Template
 
 
 class MemberSelectView(discord.ui.View):

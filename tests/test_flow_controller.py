@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
+from domain import UserInfo
+from data_interface import FlowController
 from flow.actions import FlowAction
 from flow.handlers import BaseStateHandler
-from data_interface import FlowController
 from models.context_model import CommandContext
-from models.model import UserInfo
 from models.state_model import AmidakujiState
 
 

@@ -6,7 +6,7 @@ from typing import Dict, Iterable, List, Optional
 import discord
 
 from db_manager import DBManager
-from models.model import Template, TemplateScope
+from domain import Template, TemplateScope
 
 
 def _create_status_embed(message: str) -> discord.Embed:

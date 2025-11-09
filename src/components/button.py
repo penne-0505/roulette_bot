@@ -1,7 +1,7 @@
 import discord
 
+from domain import Template
 from models.context_model import CommandContext
-from models.model import Template
 from models.state_model import AmidakujiState
 from components.mixins import DisableViewOnCallbackMixin
 
