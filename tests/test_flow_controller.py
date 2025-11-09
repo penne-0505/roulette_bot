@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
-from domain import UserInfo
+from application.dto import FlowTransitionDTO, TemplateDeletionResultDTO, TemplateListDTO
 from data_interface import FlowController
 from flow.actions import FlowAction
 from flow.handlers import BaseStateHandler
@@ -117,11 +117,27 @@ async def test_dispatch_template_deleted_transitions_to_use_existing():
     )
     context.result = interaction
 
-    services = SimpleNamespace(
-        db=MagicMock(
-            delete_custom_template=MagicMock(),
-            get_user=MagicMock(return_value=UserInfo(id=42, name="Tester")),
+    transition = FlowTransitionDTO(
+        next_state=AmidakujiState.MODE_USE_EXISTING,
+        result=interaction,
+        interaction=interaction,
+    )
+    flow_service = MagicMock(
+        remove_template=MagicMock(
+            return_value=TemplateDeletionResultDTO(
+                title="Obsolete Template",
+                transition=transition,
+            )
         )
+    )
+    template_service = SimpleNamespace(
+        list_private_templates=MagicMock(
+            return_value=TemplateListDTO(templates=[], scope=None)
+        )
+    )
+    services = SimpleNamespace(
+        amidakuji_flow_service=flow_service,
+        template_service=template_service,
     )
 
     controller = FlowController(context=context, services=services)
@@ -132,9 +148,10 @@ async def test_dispatch_template_deleted_transitions_to_use_existing():
         interaction,
     )
 
-    services.db.delete_custom_template.assert_called_once_with(
+    flow_service.remove_template.assert_called_once_with(
         user_id=42,
         template_title="Obsolete Template",
+        interaction=interaction,
     )
     assert context.state is AmidakujiState.MODE_USE_EXISTING
     followup_calls = interaction.followup.send.call_args_list

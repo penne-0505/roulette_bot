@@ -1,3 +1,4 @@
+"""メンバー選択後の処理を担うステートハンドラ。"""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -7,9 +8,8 @@ import discord
 
 import data_process
 from domain import AssignmentHistory, PairList, SelectionMode, Template
-from domain.services.selection_mode_service import coerce_selection_mode
 from flow.actions import FlowAction, SendMessageAction
-from flow.handlers.base import BaseStateHandler, resolve_db_manager
+from flow.handlers.base import BaseStateHandler, resolve_history_service
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
 
@@ -17,10 +17,6 @@ from models.state_model import AmidakujiState
 class MemberSelectedHandler(BaseStateHandler):
     HISTORY_LOOKBACK = 10
     CONSECUTIVE_THRESHOLD = 3
-
-    @staticmethod
-    def _normalize_selection_mode(mode: str | SelectionMode) -> SelectionMode:
-        return coerce_selection_mode(mode)
 
     @classmethod
     def _build_streaks(
@@ -104,22 +100,22 @@ class MemberSelectedHandler(BaseStateHandler):
         if not isinstance(selected_template, Template):
             raise ValueError("Template is not selected")
 
-        choices = selected_template.choices
-        db_manager = resolve_db_manager(context, services)
-        selection_mode_value = db_manager.get_selection_mode()
-        selection_mode = self._normalize_selection_mode(selection_mode_value)
+        history_service = resolve_history_service(services)
+        selection_mode = history_service.get_selection_mode()
 
+        choices = selected_template.choices
         current_guild = context.interaction.guild
         guild_id = getattr(current_guild, "id", None) or getattr(
             context.interaction, "guild_id", 0
         )
 
-        history_records = db_manager.get_recent_history(
+        history_records = history_service.get_recent_history(
             guild_id=guild_id,
             template_title=selected_template.title,
             limit=self.HISTORY_LOOKBACK,
         )
         streaks_before = self._build_streaks(history_records)
+
         weights = None
         if selection_mode is SelectionMode.BIAS_REDUCTION:
             weights = self._build_weight_map(
@@ -137,10 +133,10 @@ class MemberSelectedHandler(BaseStateHandler):
 
         embeds = data_process.create_embeds_from_pairs(
             pairs=pairs,
-            mode=db_manager.get_embed_mode(),
+            mode=history_service.get_embed_mode(),
         )
 
-        db_manager.save_history(
+        history_service.save_history(
             guild_id=guild_id,
             template=selected_template,
             pairs=pairs,

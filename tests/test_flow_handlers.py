@@ -6,6 +6,13 @@ import discord
 import pytest
 
 import data_process
+from application.dto import (
+    FlowTransitionDTO,
+    HistoryUsageResultDTO,
+    TemplateCreationResultDTO,
+    TemplateDeletionResultDTO,
+    TemplateListDTO,
+)
 from domain import (
     AssignmentEntry,
     AssignmentHistory,
@@ -14,7 +21,6 @@ from domain import (
     SelectionMode,
     Template,
     TemplateScope,
-    UserInfo,
 )
 from flow.actions import DeferResponseAction, EditMessageAction, SendMessageAction, SendViewAction
 from flow.handlers import (
@@ -68,10 +74,16 @@ async def test_use_existing_handler_returns_select_view(base_interaction):
     context.result = base_interaction
 
     template = Template(title="League", choices=["Top"])
-    user = UserInfo(id=42, name="Tester", custom_templates=[template])
 
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_user.return_value = user
+    template_service = SimpleNamespace(
+        list_private_templates=MagicMock(
+            return_value=TemplateListDTO(
+                templates=[template],
+                scope=TemplateScope.PRIVATE,
+            )
+        )
+    )
+    services = SimpleNamespace(template_service=template_service)
 
     handler = UseExistingHandler()
     action = await handler.handle(context, services)
@@ -90,7 +102,7 @@ async def test_use_shared_templates_handler_requires_guild(base_interaction):
     )
     context.result = base_interaction
 
-    services = SimpleNamespace(db=MagicMock())
+    services = SimpleNamespace(template_service=SimpleNamespace())
     handler = UseSharedTemplatesHandler()
     action = await handler.handle(context, services)
 
@@ -112,10 +124,16 @@ async def test_use_shared_templates_handler_returns_select_view(base_interaction
         choices=["A"],
         scope=TemplateScope.GUILD,
     )
-    user = UserInfo(id=42, name="Tester", shared_templates=[template])
 
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_user.return_value = user
+    template_service = SimpleNamespace(
+        list_shared_templates=MagicMock(
+            return_value=TemplateListDTO(
+                templates=[template],
+                scope=TemplateScope.GUILD,
+            )
+        )
+    )
+    services = SimpleNamespace(template_service=template_service)
 
     handler = UseSharedTemplatesHandler()
     action = await handler.handle(context, services)
@@ -137,10 +155,16 @@ async def test_use_public_templates_handler_returns_select_view(base_interaction
         choices=["A"],
         scope=TemplateScope.PUBLIC,
     )
-    user = UserInfo(id=42, name="Tester", public_templates=[template])
 
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_user.return_value = user
+    template_service = SimpleNamespace(
+        list_public_templates=MagicMock(
+            return_value=TemplateListDTO(
+                templates=[template],
+                scope=TemplateScope.PUBLIC,
+            )
+        )
+    )
+    services = SimpleNamespace(template_service=template_service)
 
     handler = UsePublicTemplatesHandler()
     action = await handler.handle(context, services)
@@ -260,7 +284,20 @@ async def test_template_created_handler_updates_context_in_main_flow(base_intera
         interaction=base_interaction,
     )
 
-    services = SimpleNamespace(db=MagicMock())
+    transition = FlowTransitionDTO(
+        next_state=AmidakujiState.TEMPLATE_DETERMINED,
+        result=template,
+        interaction=base_interaction,
+    )
+    flow_service = SimpleNamespace(
+        complete_template_creation=MagicMock(
+            return_value=TemplateCreationResultDTO(
+                template=template,
+                transition=transition,
+            )
+        )
+    )
+    services = SimpleNamespace(amidakuji_flow_service=flow_service)
 
     handler = TemplateCreatedHandler()
     actions = await handler.handle(context, services)
@@ -268,9 +305,7 @@ async def test_template_created_handler_updates_context_in_main_flow(base_intera
     assert isinstance(actions, list)
     assert isinstance(actions[0], DeferResponseAction)
     assert isinstance(actions[1], SendMessageAction)
-    services.db.add_custom_template.assert_called_once_with(
-        user_id=42, template=template
-    )
+    flow_service.complete_template_creation.assert_called_once()
     assert context.state is AmidakujiState.TEMPLATE_DETERMINED
     assert context.result is template
 
@@ -284,7 +319,15 @@ async def test_template_created_handler_standalone_creation_stops_flow(base_inte
     )
     context.result = template
 
-    services = SimpleNamespace(db=MagicMock())
+    flow_service = SimpleNamespace(
+        complete_template_creation=MagicMock(
+            return_value=TemplateCreationResultDTO(
+                template=template,
+                transition=None,
+            )
+        )
+    )
+    services = SimpleNamespace(amidakuji_flow_service=flow_service)
 
     handler = TemplateCreatedHandler()
     actions = await handler.handle(context, services)
@@ -292,9 +335,7 @@ async def test_template_created_handler_standalone_creation_stops_flow(base_inte
     assert isinstance(actions, list)
     assert isinstance(actions[0], DeferResponseAction)
     assert isinstance(actions[1], SendMessageAction)
-    services.db.add_custom_template.assert_called_once_with(
-        user_id=42, template=template
-    )
+    flow_service.complete_template_creation.assert_called_once()
     assert context.state is AmidakujiState.TEMPLATE_CREATED
     assert context.result is template
 
@@ -308,7 +349,10 @@ async def test_template_created_handler_rejects_single_option(base_interaction):
     )
     context.result = template
 
-    services = SimpleNamespace(db=MagicMock())
+    flow_service = SimpleNamespace(
+        complete_template_creation=MagicMock()
+    )
+    services = SimpleNamespace(amidakuji_flow_service=flow_service)
 
     handler = TemplateCreatedHandler()
     action = await handler.handle(context, services)
@@ -316,7 +360,7 @@ async def test_template_created_handler_rejects_single_option(base_interaction):
     assert isinstance(action, SendMessageAction)
     assert action.embed is not None
     assert "2件以上" in action.embed.description
-    services.db.add_custom_template.assert_not_called()
+    flow_service.complete_template_creation.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -328,10 +372,16 @@ async def test_delete_template_mode_handler_returns_delete_view(base_interaction
     context.result = base_interaction
 
     template = Template(title="League", choices=["Top"])
-    user = UserInfo(id=42, name="Tester", custom_templates=[template])
 
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_user.return_value = user
+    template_service = SimpleNamespace(
+        list_private_templates=MagicMock(
+            return_value=TemplateListDTO(
+                templates=[template],
+                scope=TemplateScope.PRIVATE,
+            )
+        )
+    )
+    services = SimpleNamespace(template_service=template_service)
 
     handler = DeleteTemplateModeHandler()
     action = await handler.handle(context, services)
@@ -348,10 +398,15 @@ async def test_delete_template_mode_handler_returns_error_when_no_templates(base
     )
     context.result = base_interaction
 
-    user = UserInfo(id=42, name="Tester", custom_templates=[])
-
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_user.return_value = user
+    template_service = SimpleNamespace(
+        list_private_templates=MagicMock(
+            return_value=TemplateListDTO(
+                templates=[],
+                scope=TemplateScope.PRIVATE,
+            )
+        )
+    )
+    services = SimpleNamespace(template_service=template_service)
 
     handler = DeleteTemplateModeHandler()
     action = await handler.handle(context, services)
@@ -369,13 +424,28 @@ async def test_template_deleted_handler_deletes_template(base_interaction):
     )
     context.result = "League"
 
-    services = SimpleNamespace(db=MagicMock())
+    transition = FlowTransitionDTO(
+        next_state=AmidakujiState.MODE_USE_EXISTING,
+        result=base_interaction,
+        interaction=base_interaction,
+    )
+    flow_service = SimpleNamespace(
+        remove_template=MagicMock(
+            return_value=TemplateDeletionResultDTO(
+                title="League",
+                transition=transition,
+            )
+        )
+    )
+    services = SimpleNamespace(amidakuji_flow_service=flow_service)
 
     handler = TemplateDeletedHandler()
     actions = await handler.handle(context, services)
 
-    services.db.delete_custom_template.assert_called_once_with(
-        user_id=42, template_title="League"
+    flow_service.remove_template.assert_called_once_with(
+        user_id=42,
+        template_title="League",
+        interaction=base_interaction,
     )
     assert isinstance(actions, list)
     assert isinstance(actions[0], DeferResponseAction)
@@ -392,8 +462,10 @@ async def test_use_history_handler_returns_error_when_missing_history(base_inter
     )
     context.result = base_interaction
 
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_user.return_value = UserInfo(id=42, name="Tester")
+    flow_service = SimpleNamespace(
+        use_recent_template=MagicMock(side_effect=LookupError())
+    )
+    services = SimpleNamespace(amidakuji_flow_service=flow_service)
 
     handler = UseHistoryHandler()
     action = await handler.handle(context, services)
@@ -417,10 +489,20 @@ async def test_use_history_handler_returns_followup_when_history_exists(base_int
     )
 
     template = Template(title="Saved", choices=["A", "B"])
-    user = UserInfo(id=42, name="Tester", least_template=template)
-
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_user.return_value = user
+    transition = FlowTransitionDTO(
+        next_state=AmidakujiState.TEMPLATE_DETERMINED,
+        result=template,
+        interaction=base_interaction,
+    )
+    flow_service = SimpleNamespace(
+        use_recent_template=MagicMock(
+            return_value=HistoryUsageResultDTO(
+                template=template,
+                transition=transition,
+            )
+        )
+    )
+    services = SimpleNamespace(amidakuji_flow_service=flow_service)
 
     handler = UseHistoryHandler()
     action = await handler.handle(context, services)
@@ -430,6 +512,7 @@ async def test_use_history_handler_returns_followup_when_history_exists(base_int
     assert action.interaction is context.history[AmidakujiState.COMMAND_EXECUTED]
     assert context.state is AmidakujiState.TEMPLATE_DETERMINED
     assert context.result is template
+    flow_service.use_recent_template.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -467,13 +550,20 @@ async def test_shared_template_copy_handler_invokes_copy(base_interaction):
     context.result = template
 
     copied = Template(title="Guild Shared (2)", choices=["A"])
-    services = SimpleNamespace(db=MagicMock())
-    services.db.copy_shared_template_to_user.return_value = copied
+    template_service = SimpleNamespace(
+        copy_shared_template=MagicMock(
+            return_value=SimpleNamespace(template=copied)
+        )
+    )
+    services = SimpleNamespace(template_service=template_service)
 
     handler = SharedTemplateCopyHandler()
     action = await handler.handle(context, services)
 
-    services.db.copy_shared_template_to_user.assert_called_once_with(42, template)
+    template_service.copy_shared_template.assert_called_once_with(
+        user_id=42,
+        template=template,
+    )
     assert isinstance(action, SendMessageAction)
     assert action.followup is True
 
@@ -487,12 +577,18 @@ async def test_template_determined_handler_returns_member_select_view(base_inter
     )
     context.result = template
 
-    services = SimpleNamespace(db=MagicMock())
+    template_service = SimpleNamespace(
+        mark_recent_template=MagicMock()
+    )
+    services = SimpleNamespace(template_service=template_service)
 
     handler = TemplateDeterminedHandler()
     action = await handler.handle(context, services)
 
-    services.db.set_least_template.assert_called_once_with(42, template)
+    template_service.mark_recent_template.assert_called_once_with(
+        user_id=42,
+        template=template,
+    )
     assert isinstance(action, SendViewAction)
     assert isinstance(action.view, MemberSelectView)
 
@@ -531,18 +627,21 @@ async def test_member_selected_handler_builds_embeds(monkeypatch, base_interacti
     monkeypatch.setattr(data_process, "create_pair_from_list", fake_create_pair_from_list)
     monkeypatch.setattr(data_process, "create_embeds_from_pairs", fake_create_embeds_from_pairs)
 
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_embed_mode.return_value = "compact"
-    services.db.get_selection_mode.return_value = SelectionMode.RANDOM.value
-    services.db.get_recent_history.return_value = []
+    history_service = SimpleNamespace(
+        get_selection_mode=MagicMock(return_value=SelectionMode.RANDOM),
+        get_recent_history=MagicMock(return_value=[]),
+        get_embed_mode=MagicMock(return_value="compact"),
+        save_history=MagicMock(),
+    )
+    services = SimpleNamespace(history_service=history_service)
 
     handler = MemberSelectedHandler()
     action = await handler.handle(context, services)
 
-    services.db.get_embed_mode.assert_called_once()
-    services.db.get_selection_mode.assert_called_once()
-    services.db.get_recent_history.assert_called_once()
-    services.db.save_history.assert_called_once()
+    history_service.get_embed_mode.assert_called_once()
+    history_service.get_selection_mode.assert_called_once()
+    history_service.get_recent_history.assert_called_once()
+    history_service.save_history.assert_called_once()
     assert isinstance(action, SendMessageAction)
     assert action.embeds is embeds
     assert action.ephemeral is False
@@ -594,10 +693,13 @@ async def test_member_selected_handler_detects_bias(monkeypatch, base_interactio
         for idx in range(3)
     ]
 
-    services = SimpleNamespace(db=MagicMock())
-    services.db.get_embed_mode.return_value = "compact"
-    services.db.get_selection_mode.return_value = SelectionMode.BIAS_REDUCTION.value
-    services.db.get_recent_history.return_value = histories
+    history_service = SimpleNamespace(
+        get_selection_mode=MagicMock(return_value=SelectionMode.BIAS_REDUCTION),
+        get_recent_history=MagicMock(return_value=histories),
+        get_embed_mode=MagicMock(return_value="compact"),
+        save_history=MagicMock(),
+    )
+    services = SimpleNamespace(history_service=history_service)
 
     handler = MemberSelectedHandler()
     actions = await handler.handle(context, services)
