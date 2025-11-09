@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from injector import Injector
+
 from app.config import AppConfig
 from presentation.discord.client import BotClient
 from presentation.discord.commands.registry import register_commands
-from services.app_context import create_db_manager
 
 
 @dataclass(slots=True)
@@ -20,11 +21,11 @@ class DiscordApplication:
             await self.client.start(self.token)
 
 
-def build_discord_application(config: AppConfig) -> DiscordApplication:
-    """設定値を基に Discord アプリケーションを組み立てる。"""
+def build_discord_application(injector: Injector) -> DiscordApplication:
+    """DI コンテナを利用して Discord アプリケーションを組み立てる。"""
 
-    db_manager = create_db_manager(config.firebase.credentials_reference)
-    client = BotClient(db_manager=db_manager)
+    config = injector.get(AppConfig)
+    client = injector.get(BotClient)
     register_commands(client)
     return DiscordApplication(client=client, token=config.discord.token)
 
