@@ -23,7 +23,7 @@ from db.serializers import (
     serialize_template,
 )
 
-from models.model import (
+from domain import (
     AssignmentHistory,
     ResultEmbedMode,
     SelectionMode,
@@ -31,6 +31,9 @@ from models.model import (
     TemplateScope,
     UserInfo,
 )
+from domain.interfaces.repositories import TemplateRepository
+from domain.services.selection_mode_service import coerce_selection_mode
+from domain.services.template_service import merge_templates
 
 __all__ = [
     "DBManager",
@@ -43,7 +46,7 @@ __all__ = [
 ]
 
 
-class DBManager:
+class DBManager(TemplateRepository):
     """Firestore上のデータを操作する高水準マネージャ。"""
 
     _global_instance: ClassVar["DBManager | None"] = None
@@ -159,25 +162,11 @@ class DBManager:
 
     @staticmethod
     def _merge_template_lists(*template_lists: Iterable[Template]) -> list[Template]:
-        seen_titles: set[str] = set()
-        merged: list[Template] = []
-        for templates in template_lists:
-            for template in templates:
-                if template.title in seen_titles:
-                    continue
-                seen_titles.add(template.title)
-                merged.append(template)
-        return merged
+        return merge_templates(*template_lists)
 
     @staticmethod
     def _coerce_selection_mode(value: SelectionMode | str) -> SelectionMode:
-        if isinstance(value, SelectionMode):
-            return value
-        normalized = str(value).lower()
-        try:
-            return SelectionMode(normalized)
-        except ValueError as exc:  # pragma: no cover - defensive guard
-            raise ValueError("Invalid selection mode") from exc
+        return coerce_selection_mode(value)
 
     @staticmethod
     def _coerce_embed_mode(value: ResultEmbedMode | str) -> ResultEmbedMode:

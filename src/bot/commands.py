@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import time
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 import discord
 import psutil
@@ -12,8 +12,9 @@ from discord.app_commands import locale_str
 
 from data_interface import FlowController
 from db_manager import DBManager
+from domain import ResultEmbedMode, SelectionMode, Template, TemplateScope
+from domain.services.template_service import merge_templates
 from models.context_model import CommandContext
-from models.model import ResultEmbedMode, SelectionMode, Template, TemplateScope
 from models.state_model import AmidakujiState
 from views.embed_mode import (
     EmbedModeView,
@@ -224,18 +225,6 @@ def register_commands(client: "BotClient") -> None:
             ephemeral=True,
         )
 
-    def _merge_templates(*template_lists: Iterable[Template]) -> list[Template]:
-        merged: list[Template] = []
-        seen_ids: set[str] = set()
-        for templates in template_lists:
-            for template in templates:
-                identifier = template.template_id or template.title
-                if identifier in seen_ids:
-                    continue
-                seen_ids.add(identifier)
-                merged.append(template)
-        return merged
-
     @tree.command(
         name=locale_str("amidakuji_template_list"),
         description=locale_str("amidakuji_template_list.description"),
@@ -259,7 +248,7 @@ def register_commands(client: "BotClient") -> None:
             )
             default_templates = db_manager.get_default_templates()
             private_templates = []
-            public_templates = _merge_templates(public_shared, default_templates)
+            public_templates = merge_templates(public_shared, default_templates)
 
         view = TemplateListView(
             private_templates=private_templates,

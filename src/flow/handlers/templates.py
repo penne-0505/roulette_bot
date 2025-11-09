@@ -6,6 +6,7 @@ from typing import Any
 import discord
 
 from components.modal import TitleEnterModal
+from domain import Template, TemplateScope
 from flow.actions import (
     DeferResponseAction,
     FlowAction,
@@ -21,7 +22,6 @@ from flow.handlers.base import (
     resolve_user_context,
 )
 from models.context_model import CommandContext
-from models.model import Template, TemplateScope
 from models.state_model import AmidakujiState
 from views.view import (
     DeleteTemplateView,

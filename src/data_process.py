@@ -3,13 +3,12 @@ from collections import defaultdict
 
 import discord
 
-from models.model import Pair, PairList, ResultEmbedMode, SelectionMode
+from domain import Pair, PairList, ResultEmbedMode, SelectionMode
+from domain.services.selection_mode_service import coerce_selection_mode
 
 
 def _normalize_selection_mode(mode: SelectionMode | str) -> str:
-    if isinstance(mode, SelectionMode):
-        return mode.value
-    return str(mode).lower()
+    return coerce_selection_mode(mode).value
 
 
 def _build_weight_matrix(

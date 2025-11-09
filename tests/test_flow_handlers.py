@@ -6,6 +6,16 @@ import discord
 import pytest
 
 import data_process
+from domain import (
+    AssignmentEntry,
+    AssignmentHistory,
+    Pair,
+    PairList,
+    SelectionMode,
+    Template,
+    TemplateScope,
+    UserInfo,
+)
 from flow.actions import DeferResponseAction, EditMessageAction, SendMessageAction, SendViewAction
 from flow.handlers import (
     OptionDeletedHandler,
@@ -28,23 +38,13 @@ from flow.handlers import (
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
 from views.view import (
+    ApplyOptionsView,
     DeleteTemplateView,
     MemberSelectView,
     PublicTemplateSelectView,
     SelectTemplateView,
     SharedTemplateActionView,
     SharedTemplateSelectView,
-    ApplyOptionsView,
-)
-from models.model import (
-    AssignmentEntry,
-    AssignmentHistory,
-    Pair,
-    PairList,
-    SelectionMode,
-    Template,
-    UserInfo,
-    TemplateScope
 )
 
 @pytest.fixture
@@ -78,7 +78,7 @@ async def test_use_existing_handler_returns_select_view(base_interaction):
 
     assert isinstance(action, SendViewAction)
     assert isinstance(action.view, SelectTemplateView)
-    assert len(action.view.children) == 2
+    assert len(action.view.children) == 1
 
 
 @pytest.mark.asyncio

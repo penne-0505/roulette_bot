@@ -6,10 +6,11 @@ from typing import Any
 import discord
 
 import data_process
+from domain import AssignmentHistory, PairList, SelectionMode, Template
+from domain.services.selection_mode_service import coerce_selection_mode
 from flow.actions import FlowAction, SendMessageAction
 from flow.handlers.base import BaseStateHandler, resolve_db_manager
 from models.context_model import CommandContext
-from models.model import AssignmentHistory, PairList, SelectionMode, Template
 from models.state_model import AmidakujiState
 
 
@@ -19,12 +20,7 @@ class MemberSelectedHandler(BaseStateHandler):
 
     @staticmethod
     def _normalize_selection_mode(mode: str | SelectionMode) -> SelectionMode:
-        if isinstance(mode, SelectionMode):
-            return mode
-        try:
-            return SelectionMode(str(mode))
-        except ValueError:
-            return SelectionMode.RANDOM
+        return coerce_selection_mode(mode)
 
     @classmethod
     def _build_streaks(

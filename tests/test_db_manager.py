@@ -4,10 +4,10 @@ from unittest.mock import MagicMock
 from db_manager import (
     COLLECTION_SENTINEL_DOCUMENT_ID,
     DBManager,
-    SharedTemplateRepository,
     REQUIRED_COLLECTIONS,
+    SharedTemplateRepository,
 )
-from models.model import (
+from domain import (
     Pair,
     PairList,
     ResultEmbedMode,

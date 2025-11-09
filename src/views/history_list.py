@@ -7,7 +7,7 @@ from typing import Iterable, Sequence
 import discord
 
 from db_manager import DBManager
-from models.model import AssignmentHistory, SelectionMode, Template
+from domain import AssignmentHistory, SelectionMode, Template
 from views.search_utils import search_templates
 
 

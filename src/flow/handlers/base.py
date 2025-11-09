@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 import discord
 
+from domain import TemplateScope, UserInfo
+from domain.interfaces.repositories import TemplateRepository
 from flow.actions import FlowAction, SendMessageAction
 from models.context_model import CommandContext
-from models.model import TemplateScope, UserInfo
 from models.state_model import AmidakujiState
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -34,7 +35,7 @@ def get_db_manager_from_source(source: Any) -> Any:
     return getattr(source, "db", None) if source is not None else None
 
 
-def resolve_db_manager(context: CommandContext, services: Any) -> "DBManager":
+def resolve_db_manager(context: CommandContext, services: Any) -> TemplateRepository:
     db_manager = get_db_manager_from_source(services)
     if db_manager is None:
         interaction_client = getattr(context.interaction, "client", None)
@@ -47,7 +48,7 @@ def resolve_db_manager(context: CommandContext, services: Any) -> "DBManager":
 class UserContext(NamedTuple):
     """ユーザー/ギルド情報をまとめたコンテナ。"""
 
-    db_manager: "DBManager"
+    db_manager: TemplateRepository
     user_data: UserInfo | None
     guild_id: int | None
 

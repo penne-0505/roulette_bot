@@ -5,13 +5,14 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any, Mapping
 
-from models.model import (
+from domain import (
     AssignmentEntry,
     AssignmentHistory,
     SelectionMode,
     Template,
     TemplateScope,
 )
+from domain.services.selection_mode_service import coerce_selection_mode
 from utils import generate_template_id
 
 
@@ -101,13 +102,7 @@ def deserialize_assignment_history(data: Mapping[str, Any]) -> AssignmentHistory
     """Firestoreの履歴ドキュメントを `AssignmentHistory` に変換する。"""
 
     selection_mode_value = data.get("selection_mode", SelectionMode.RANDOM.value)
-    if isinstance(selection_mode_value, SelectionMode):
-        selection_mode = selection_mode_value
-    else:
-        try:
-            selection_mode = SelectionMode(str(selection_mode_value))
-        except ValueError:
-            selection_mode = SelectionMode.RANDOM
+    selection_mode = coerce_selection_mode(selection_mode_value)
 
     created_at_raw = data.get("created_at")
     created_at = ensure_datetime(created_at_raw)
