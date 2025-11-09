@@ -1,3 +1,4 @@
+import logging
 import random
 from collections import defaultdict
 
@@ -5,6 +6,9 @@ import discord
 
 from domain import Pair, PairList, ResultEmbedMode, SelectionMode
 from domain.services.selection_mode_service import coerce_selection_mode
+from utils import WARN
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _normalize_selection_mode(mode: SelectionMode | str) -> str:
@@ -20,12 +24,56 @@ def _build_weight_matrix(
         return {user.id: {group: 1.0 for group in groupes} for user in users}
 
     matrix: dict[int, dict[str, float]] = defaultdict(dict)
+    missing_pairs: list[tuple[int, str]] = []
+    missing_users: set[int] = set()
+
     for user in users:
-        user_weights = weights.get(user.id, {})
+        user_weights = weights.get(user.id)
+        if not user_weights:
+            missing_users.add(user.id)
+            user_weights = {}
         matrix[user.id] = {
-            group: max(float(user_weights.get(group, 1.0)), 0.0) for group in groupes
+            group: _coerce_weight(user_weights, group, missing_pairs, user.id)
+            for group in groupes
         }
+
+    if missing_pairs or missing_users:
+        _log_missing_weights(missing_pairs, missing_users)
+
     return matrix
+
+
+def _coerce_weight(
+    user_weights: dict[str, float],
+    group: str,
+    missing_pairs: list[tuple[int, str]],
+    user_id: int,
+) -> float:
+    raw_value = user_weights.get(group, 1.0)
+    if group not in user_weights:
+        missing_pairs.append((user_id, group))
+    return max(float(raw_value), 0.0)
+
+
+def _log_missing_weights(
+    missing_pairs: list[tuple[int, str]], missing_users: set[int]
+) -> None:
+    pair_count = len(missing_pairs)
+    user_segment = ""
+    if missing_users:
+        user_segment = " / ".join(str(user_id) for user_id in sorted(missing_users))
+        user_segment = f" 欠損ユーザー: {user_segment}"
+
+    samples = ", ".join(f"{user}:{choice}" for user, choice in missing_pairs[:3])
+    if pair_count > 3:
+        samples += f"...(+{pair_count - 3})"
+    sample_segment = f" サンプル: {samples}" if samples else ""
+
+    message = (
+        f"重みテーブルの欠損を検出しました。{pair_count} 件を既定値 1.0 で補完します。"
+        f"{user_segment}{sample_segment}"
+    )
+    LOGGER.warning(WARN + message)
 
 
 def create_pair_from_list(

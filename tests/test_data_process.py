@@ -1,3 +1,4 @@
+import logging
 from types import SimpleNamespace
 
 import data_process
@@ -94,3 +95,18 @@ def test_create_pair_from_list_bias_reduction_respects_weights(monkeypatch) -> N
     assert pairs.pairs[1].user is user_a
     assert pairs.pairs[1].choice == "Jungle"
 
+
+def test_create_pair_logs_warning_for_missing_weights(caplog) -> None:
+    user_a = SimpleNamespace(id=1, display_name="UserA")
+    user_b = SimpleNamespace(id=2, display_name="UserB")
+    groupes = ["Top", "Jungle"]
+
+    with caplog.at_level(logging.WARNING):
+        create_pair_from_list(
+            [user_a, user_b],
+            groupes,
+            selection_mode=SelectionMode.BIAS_REDUCTION,
+            weights={user_a.id: {"Top": 2.0}},
+        )
+
+    assert "重みテーブルの欠損" in caplog.text

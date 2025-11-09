@@ -70,3 +70,56 @@ def test_resolve_fetches_from_http_when_not_a_path() -> None:
 def test_resolve_missing_reference_raises_error() -> None:
     with pytest.raises(RuntimeError):
         resolve_firebase_credentials(None, env={}, env_loader=lambda: None)
+
+
+def test_resolve_http_response_is_cached(tmp_path: Path) -> None:
+    payload = {"project_id": "demo"}
+    response = _DummyResponse(payload)
+    requested: list[str] = []
+
+    def fake_get(url: str) -> _DummyResponse:
+        requested.append(url)
+        return response
+
+    first = resolve_firebase_credentials(
+        "https://example.com/firebase.json",
+        http_get=fake_get,
+        cache_dir=tmp_path,
+    )
+    second = resolve_firebase_credentials(
+        "https://example.com/firebase.json",
+        http_get=fake_get,
+        cache_dir=tmp_path,
+    )
+
+    assert first == payload
+    assert second == payload
+    assert requested == ["https://example.com/firebase.json"]
+
+
+def test_resolve_cache_can_be_disabled(tmp_path: Path) -> None:
+    payload = {"project_id": "demo"}
+    response = _DummyResponse(payload)
+    requested: list[str] = []
+
+    def fake_get(url: str) -> _DummyResponse:
+        requested.append(url)
+        return response
+
+    resolve_firebase_credentials(
+        "https://example.com/firebase.json",
+        http_get=fake_get,
+        cache_dir=tmp_path,
+        enable_cache=False,
+    )
+    resolve_firebase_credentials(
+        "https://example.com/firebase.json",
+        http_get=fake_get,
+        cache_dir=tmp_path,
+        enable_cache=False,
+    )
+
+    assert requested == [
+        "https://example.com/firebase.json",
+        "https://example.com/firebase.json",
+    ]
