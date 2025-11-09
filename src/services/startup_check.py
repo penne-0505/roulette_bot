@@ -9,9 +9,9 @@ import discord
 
 from db_manager import (
     COLLECTION_SENTINEL_DOCUMENT_ID,
-    DBManager,
     REQUIRED_COLLECTIONS as DB_REQUIRED_COLLECTIONS,
 )
+from domain.interfaces.repositories import TemplateRepository
 from utils import ERROR, INFO, SUCCESS, WARN, green, red, yellow
 
 
@@ -37,7 +37,7 @@ class StartupSelfCheck:
 
     REQUIRED_COLLECTIONS: tuple[str, ...] = DB_REQUIRED_COLLECTIONS
 
-    def __init__(self, db_manager: DBManager) -> None:
+    def __init__(self, db_manager: TemplateRepository) -> None:
         self._db_manager = db_manager
 
     def run(self, *, discord_client: discord.Client) -> bool:

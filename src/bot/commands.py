@@ -11,7 +11,7 @@ import psutil
 from discord.app_commands import locale_str
 
 from data_interface import FlowController
-from db_manager import DBManager
+from domain.interfaces.repositories import TemplateRepository
 from domain import ResultEmbedMode, SelectionMode, Template, TemplateScope
 from domain.services.template_service import merge_templates
 from models.context_model import CommandContext
@@ -39,7 +39,7 @@ def register_commands(client: "BotClient") -> None:
 
     tree = client.tree
 
-    def require_db_manager(interaction: discord.Interaction) -> DBManager:
+    def require_db_manager(interaction: discord.Interaction) -> TemplateRepository:
         db_manager = getattr(interaction.client, "db", None)
         if db_manager is None:
             raise RuntimeError("DB manager is not available")

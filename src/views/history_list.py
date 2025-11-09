@@ -6,7 +6,7 @@ from typing import Iterable, Sequence
 
 import discord
 
-from db_manager import DBManager
+from domain.interfaces.repositories import TemplateRepository
 from domain import AssignmentHistory, SelectionMode, Template
 from views.search_utils import search_templates
 
@@ -24,7 +24,7 @@ class HistoryListView(discord.ui.View):
     def __init__(
         self,
         *,
-        db_manager: DBManager,
+        db_manager: TemplateRepository,
         guild_id: int,
         page_size: int = 5,
         template_title: str | None = None,

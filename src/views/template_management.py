@@ -5,7 +5,7 @@ from typing import Dict, Iterable, List, Optional
 
 import discord
 
-from db_manager import DBManager
+from domain.interfaces.repositories import TemplateRepository
 from domain import Template, TemplateScope
 
 
@@ -89,7 +89,7 @@ class TemplateManagementView(discord.ui.View):
     def __init__(
         self,
         *,
-        db_manager: DBManager,
+        db_manager: TemplateRepository,
         user_id: int,
         templates: Iterable[Template],
     ) -> None:

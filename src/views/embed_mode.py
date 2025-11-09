@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import discord
 
-from db_manager import DBManager
+from domain.interfaces.repositories import TemplateRepository
 from domain import ResultEmbedMode
 
 
@@ -49,7 +49,7 @@ class EmbedModeView(discord.ui.View):
     def __init__(
         self,
         *,
-        db_manager: DBManager,
+        db_manager: TemplateRepository,
         current_mode: ResultEmbedMode,
         user_id: int,
     ) -> None:
