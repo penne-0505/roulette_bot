@@ -8,6 +8,7 @@ from typing import Any
 import discord
 
 from domain.interfaces.repositories import TemplateRepository
+from presentation.discord.services import DiscordCommandUseCases
 from services.startup_check import StartupSelfCheck
 from utils import (
     ERROR,
@@ -31,6 +32,7 @@ class BotClient(discord.Client):
         intents: discord.Intents | None = None,
         translator: discord.app_commands.Translator | None = None,
         auto_sync_tree: bool = True,
+        usecases: DiscordCommandUseCases | None = None,
     ) -> None:
         if db_manager is None:
             raise ValueError("db_manager must not be None")
@@ -41,6 +43,7 @@ class BotClient(discord.Client):
         self.tree = discord.app_commands.CommandTree(self)
         self._translator = translator or CommandsTranslator()
         self._auto_sync_tree = auto_sync_tree
+        self._usecases = usecases or DiscordCommandUseCases.from_repository(db_manager)
 
     async def setup_hook(self) -> None:
         await self.tree.set_translator(self._translator)
@@ -63,6 +66,12 @@ class BotClient(discord.Client):
         logging.info(INFO + f"Connected to {green(str(len(self.guilds)))} guilds")
         logging.info(INFO + f"Launch time: {green(str(time.time() - self.start_time))}s")
         logging.info(INFO + bold("Bot is ready."))
+
+    @property
+    def command_usecases(self) -> DiscordCommandUseCases:
+        """スラッシュコマンドで利用するユースケースサービス群を返す。"""
+
+        return self._usecases
 
     async def on_app_command_completion(
         self,

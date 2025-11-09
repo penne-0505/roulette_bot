@@ -1,54 +1,65 @@
-"""Slashコマンドの登録処理。"""
+"""Slash コマンドの登録処理。"""
 from __future__ import annotations
 
 import datetime
 import time
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import discord
 import psutil
 from discord.app_commands import locale_str
 
-from application import (
-    AmidakujiFlowService,
-    HistoryApplicationService,
-    TemplateApplicationService,
-)
+from application.dto import SharedTemplateSetDTO
 from data_interface import FlowController
-from domain.interfaces.repositories import TemplateRepository
-from domain import ResultEmbedMode, SelectionMode, Template, TemplateScope
-from domain.services.template_service import merge_templates
+from domain import ResultEmbedMode, SelectionMode, TemplateScope
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
-from views.embed_mode import (
-    EmbedModeView,
+from presentation.discord.client import BotClient
+from presentation.discord.components.embeds import (
     create_embed_mode_overview_embed,
-)
-from views.selection_mode import (
-    SelectionModeView,
     create_selection_mode_overview_embed,
 )
-from views.template_management import TemplateManagementView
-from views.history_list import HistoryListView
-from views.template_list import TemplateListView
-from views.template_sharing import TemplateSharingView
-from views.view import ModeSelectionView
+from presentation.discord.services import CommandRuntimeServices
+from presentation.discord.views.embed_mode import EmbedModeView
+from presentation.discord.views.history_list import HistoryListView
+from presentation.discord.views.selection_mode import SelectionModeView
+from presentation.discord.views.state import (
+    EmbedModeState,
+    SelectionModeState,
+    TemplateListViewState,
+    TemplateManagementState,
+    TemplateSharingState,
+)
+from presentation.discord.views.template_list import TemplateListView
+from presentation.discord.views.template_management import TemplateManagementView
+from presentation.discord.views.template_sharing import TemplateSharingView
+from presentation.discord.views.view import ModeSelectionView
 
 if TYPE_CHECKING:  # pragma: no cover - 型チェック専用
-    from .client import BotClient
+    from presentation.discord.client import BotClient as BotClientProtocol
 
 
-def register_commands(client: "BotClient") -> None:
-    """BotClientにスラッシュコマンドを紐付ける。"""
+def _resolve_client(interaction: discord.Interaction) -> BotClient:
+    client = interaction.client
+    if not isinstance(client, BotClient):
+        raise RuntimeError("Discord BotClient 以外のクライアントでは利用できません。")
+    return client
+
+
+def _build_runtime_services(
+    interaction: discord.Interaction,
+) -> CommandRuntimeServices:
+    client = _resolve_client(interaction)
+    return CommandRuntimeServices.from_client(
+        repository=client.db,
+        usecases=client.command_usecases,
+    )
+
+
+def register_commands(client: "BotClientProtocol") -> None:
+    """BotClient にスラッシュコマンドを紐付ける。"""
 
     tree = client.tree
-
-    def require_db_manager(interaction: discord.Interaction) -> TemplateRepository:
-        db_manager = getattr(interaction.client, "db", None)
-        if db_manager is None:
-            raise RuntimeError("DB manager is not available")
-        return db_manager
 
     @tree.command(
         name=locale_str("ping"),
@@ -115,7 +126,7 @@ def register_commands(client: "BotClient") -> None:
             await message.edit(embed=embed, content=None)
         except discord.NotFound:
             await interaction.followup.send(embed=embed, content=None)
-        except Exception:  # pragma: no cover - Discord APIの例外は環境依存
+        except Exception:  # pragma: no cover - Discord API の例外は環境依存
             embed = discord.Embed(
                 title="エラーが発生しました🥲",
                 description="ping-Unknown-Exception",
@@ -131,16 +142,7 @@ def register_commands(client: "BotClient") -> None:
     async def command_amidakuji(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        db_manager = require_db_manager(interaction)
-        template_service = TemplateApplicationService(db_manager)
-        history_service = HistoryApplicationService(db_manager)
-        flow_service = AmidakujiFlowService(template_service)
-        services = SimpleNamespace(
-            db=db_manager,
-            template_service=template_service,
-            history_service=history_service,
-            amidakuji_flow_service=flow_service,
-        )
+        services = _build_runtime_services(interaction)
         context = CommandContext(
             interaction=interaction,
             state=AmidakujiState.COMMAND_EXECUTED,
@@ -160,16 +162,7 @@ def register_commands(client: "BotClient") -> None:
         description=locale_str("amidakuji_template_create.description"),
     )
     async def command_create_template(interaction: discord.Interaction) -> None:
-        db_manager = require_db_manager(interaction)
-        template_service = TemplateApplicationService(db_manager)
-        history_service = HistoryApplicationService(db_manager)
-        flow_service = AmidakujiFlowService(template_service)
-        services = SimpleNamespace(
-            db=db_manager,
-            template_service=template_service,
-            history_service=history_service,
-            amidakuji_flow_service=flow_service,
-        )
+        services = _build_runtime_services(interaction)
         context = CommandContext(
             interaction=interaction,
             state=AmidakujiState.MODE_CREATE_NEW,
@@ -193,12 +186,17 @@ def register_commands(client: "BotClient") -> None:
     async def command_manage_templates(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        db_manager = require_db_manager(interaction)
+        services = _build_runtime_services(interaction)
+        template_service = services.template_service
         user_id = interaction.user.id
-        user = db_manager.get_user(user_id, include_shared=False)
+        guild_id = interaction.guild_id
 
-        templates = user.custom_templates if user else []
-        if not templates:
+        private_templates = template_service.list_private_templates(
+            user_id=user_id,
+            guild_id=guild_id,
+        ).templates
+
+        if not private_templates:
             embed = discord.Embed(
                 title="テンプレートはまだありません",
                 description="まずは `/amidakuji_template_create` でテンプレートを作成してください。",
@@ -207,11 +205,8 @@ def register_commands(client: "BotClient") -> None:
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
-        view = TemplateManagementView(
-            db_manager=db_manager,
-            user_id=user_id,
-            templates=templates,
-        )
+        state = TemplateManagementState(user_id=user_id, templates=private_templates)
+        view = TemplateManagementView(state=state, template_service=template_service)
 
         await interaction.followup.send(
             embed=view.create_embed(),
@@ -226,19 +221,18 @@ def register_commands(client: "BotClient") -> None:
     async def command_toggle_embed_mode(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        db_manager = require_db_manager(interaction)
-        raw_mode = db_manager.get_embed_mode()
+        services = _build_runtime_services(interaction)
+        history_service = services.history_service
+
+        raw_mode = history_service.get_embed_mode()
         try:
             current_mode = ResultEmbedMode(str(raw_mode))
         except ValueError:  # pragma: no cover - 不正値は初期値へフォールバック
             current_mode = ResultEmbedMode.COMPACT
 
+        state = EmbedModeState(current_mode=current_mode, user_id=interaction.user.id)
         embed = create_embed_mode_overview_embed(current_mode)
-        view = EmbedModeView(
-            db_manager=db_manager,
-            current_mode=current_mode,
-            user_id=interaction.user.id,
-        )
+        view = EmbedModeView(state=state, history_service=history_service)
 
         await interaction.followup.send(
             embed=embed,
@@ -253,29 +247,21 @@ def register_commands(client: "BotClient") -> None:
     async def command_list_templates(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        db_manager = require_db_manager(interaction)
+        services = _build_runtime_services(interaction)
+        template_service = services.template_service
         user_id = interaction.user.id
         guild_id = interaction.guild_id
 
-        user = db_manager.get_user(user_id, guild_id=guild_id, include_shared=True)
-
-        if user is not None:
-            private_templates = list(user.custom_templates)
-            guild_templates = list(user.shared_templates)
-            public_templates = list(user.public_templates)
-        else:
-            guild_templates, public_shared = db_manager.get_shared_templates_for_user(
-                guild_id=guild_id
-            )
-            default_templates = db_manager.get_default_templates()
-            private_templates = []
-            public_templates = merge_templates(public_shared, default_templates)
-
-        view = TemplateListView(
-            private_templates=private_templates,
-            guild_templates=guild_templates,
-            public_templates=public_templates,
+        private_dto, guild_dto, public_dto = template_service.get_template_overview(
+            user_id=user_id,
+            guild_id=guild_id,
         )
+        state = TemplateListViewState.from_dtos(
+            private=private_dto,
+            guild=guild_dto,
+            public=public_dto,
+        )
+        view = TemplateListView(state=state)
 
         embed = view.create_embed()
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
@@ -289,23 +275,17 @@ def register_commands(client: "BotClient") -> None:
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        db_manager = require_db_manager(interaction)
+        services = _build_runtime_services(interaction)
+        history_service = services.history_service
 
-        raw_mode = db_manager.get_selection_mode()
-        if isinstance(raw_mode, SelectionMode):
-            current_mode = raw_mode
-        else:
-            try:
-                current_mode = SelectionMode(str(raw_mode))
-            except ValueError:  # pragma: no cover - 不正値は初期値へフォールバック
-                current_mode = SelectionMode.RANDOM
+        current_mode = history_service.get_selection_mode()
 
-        embed = create_selection_mode_overview_embed(current_mode)
-        view = SelectionModeView(
-            db_manager=db_manager,
+        state = SelectionModeState(
             current_mode=current_mode,
             user_id=interaction.user.id,
         )
+        embed = create_selection_mode_overview_embed(current_mode)
+        view = SelectionModeView(state=state, history_service=history_service)
 
         await interaction.followup.send(
             embed=embed,
@@ -322,15 +302,12 @@ def register_commands(client: "BotClient") -> None:
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        db_manager = require_db_manager(interaction)
-
-        limit = 5
-        guild_id = interaction.guild_id or 0
+        services = _build_runtime_services(interaction)
 
         view = HistoryListView(
-            db_manager=db_manager,
-            guild_id=guild_id,
-            page_size=limit,
+            history_service=services.history_service,
+            guild_id=interaction.guild_id or 0,
+            page_size=5,
             template_title=None,
         )
 
@@ -349,26 +326,30 @@ def register_commands(client: "BotClient") -> None:
     async def command_share_templates(interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        db_manager = require_db_manager(interaction)
+        services = _build_runtime_services(interaction)
+        template_service = services.template_service
         user_id = interaction.user.id
-        user = db_manager.get_user(user_id, include_shared=False)
-        private_templates = user.custom_templates if user else []
-
         guild_id = interaction.guild_id
-        guild_templates: list[Template] = []
-        if guild_id is not None:
-            guild_templates = db_manager.list_shared_templates(
-                scope=TemplateScope.GUILD,
-                guild_id=guild_id,
-                created_by=user_id,
-            )
 
-        public_templates = db_manager.list_shared_templates(
+        private_templates = template_service.list_private_templates(
+            user_id=user_id,
+            guild_id=guild_id,
+        )
+        guild_templates = template_service.list_shared_templates_by_scope(
+            scope=TemplateScope.GUILD,
+            guild_id=guild_id,
+            created_by=user_id,
+        )
+        public_templates = template_service.list_shared_templates_by_scope(
             scope=TemplateScope.PUBLIC,
             created_by=user_id,
         )
 
-        if not private_templates and not guild_templates and not public_templates:
+        if (
+            not private_templates.templates
+            and not guild_templates.templates
+            and not public_templates.templates
+        ):
             embed = discord.Embed(
                 title="管理できるテンプレートがありません",
                 description=(
@@ -381,15 +362,19 @@ def register_commands(client: "BotClient") -> None:
             return
 
         display_name = getattr(interaction.user, "display_name", interaction.user.name)
-        view = TemplateSharingView(
-            db_manager=db_manager,
+        shared_set = SharedTemplateSetDTO(
+            shared_templates=list(guild_templates.templates),
+            public_templates=list(public_templates.templates),
+        )
+        state = TemplateSharingState.from_dtos(
             user_id=user_id,
             display_name=display_name,
             guild_id=guild_id,
-            private_templates=private_templates,
-            guild_templates=guild_templates,
-            public_templates=public_templates,
+            private=private_templates,
+            shared=shared_set,
         )
+
+        view = TemplateSharingView(state=state, template_service=template_service)
 
         await interaction.followup.send(
             embed=view.create_embed(),

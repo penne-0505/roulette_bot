@@ -15,7 +15,7 @@ from flow.actions import (
 )
 from flow.handlers.base import BaseStateHandler
 from models.context_model import CommandContext
-from views.view import ApplyOptionsView, EnterOptionView
+from presentation.discord.views.view import ApplyOptionsView, EnterOptionView
 
 
 def _build_options_embed(

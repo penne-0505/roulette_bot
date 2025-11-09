@@ -1,7 +1,7 @@
 """履歴・抽選設定に関するアプリケーションサービス。"""
 from __future__ import annotations
 
-from domain import AssignmentHistory, PairList, SelectionMode, Template
+from domain import AssignmentHistory, PairList, ResultEmbedMode, SelectionMode, Template
 from domain.interfaces.repositories import TemplateRepository
 from domain.services.selection_mode_service import coerce_selection_mode
 
@@ -54,6 +54,16 @@ class HistoryApplicationService:
         """抽選結果表示用の埋め込みモードを取得する。"""
 
         return self._repository.get_embed_mode()
+
+    def set_embed_mode(self, mode: ResultEmbedMode) -> None:
+        """抽選結果表示用の埋め込みモードを更新する。"""
+
+        self._repository.set_embed_mode(mode)
+
+    def set_selection_mode(self, mode: SelectionMode) -> None:
+        """抽選モードを更新する。"""
+
+        self._repository.set_selection_mode(mode)
 
 
 __all__ = ["HistoryApplicationService"]
