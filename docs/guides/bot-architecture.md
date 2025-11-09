@@ -11,6 +11,10 @@ src/
 │   ├── config.py            # 環境変数から AppConfig を構築
 │   ├── container.py         # BotClient と依存性を束ねるコンテナ
 │   └── logging.py           # ロギング初期化ヘルパー
+├── bootstrap/
+│   ├── __init__.py          # bootstrap_application の公開エントリポイント
+│   ├── app.py               # 設定読み込み・ロギング・DI モジュール定義
+│   └── testing.py           # 統合テスト向けファクトリ群
 ├── bot/
 │   ├── client.py            # Discord クライアント具象クラス（DBManager を明示注入）
 │   ├── commands.py          # スラッシュコマンド登録処理
@@ -22,14 +26,9 @@ src/
 
 ## 起動フロー
 
-1. `main.py` が `configure_logging()` を呼び出してログ設定を初期化します。
-2. `load_config()` が `.env`（存在すれば）を読み込み、`CLIENT_TOKEN` / `FIREBASE_CREDENTIALS` を検証します。
-3. `build_discord_application()` が `AppConfig` を受け取り、
-   - `services.app_context.create_db_manager()` で Firestore を初期化
-   - `BotClient(db_manager=...)` を生成
-   - `register_commands()` を適用
-   - `DiscordApplication`（クライアントとトークンを保持する軽量コンテナ）を返します。
-4. `DiscordApplication.run()` が `async with client: client.start(token)` を実行し、イベントループへ参加します。
+1. `bootstrap.bootstrap_application()` が呼び出され、ログ設定と環境変数からの設定読み込み、`Injector` による依存バインドをまとめて実行します。
+2. `build_discord_application()` が `Injector` から `AppConfig` / `BotClient` / ユースケース群を解決し、`register_commands()` の適用まで完了した `DiscordApplication` を返します。
+3. `DiscordApplication.run()` が `async with client: client.start(token)` を実行し、イベントループへ参加します。
 
 ## DBManager の管理
 
@@ -56,7 +55,7 @@ src/
 ## 移行メモ
 
 - 旧来の `load_client_token()` を利用しているコードはそのまま動作しますが、新規コードでは `app.load_config()` の利用を推奨します。
-- Firestore 以外のデータソースを追加する場合は、`app.container.build_discord_application()` に新しい依存解決を組み込むことで拡張できます。
+- Firestore 以外のデータソースを追加する場合は、`bootstrap.ApplicationModule` に `repository_factory` を差し込むか、`bootstrap_application()` にモジュールを追加することで拡張できます。
 
 ## 次のステップ
 
