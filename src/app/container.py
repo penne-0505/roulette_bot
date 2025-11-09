@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from bot import BotClient, register_commands
 from app.config import AppConfig
+from presentation.discord.client import BotClient
+from presentation.discord.commands.registry import register_commands
 from services.app_context import create_db_manager
 
 
