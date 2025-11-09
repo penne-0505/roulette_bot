@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import Any, NamedTuple
 
 import discord
 
@@ -12,10 +12,6 @@ from domain.interfaces.repositories import TemplateRepository
 from flow.actions import FlowAction, SendMessageAction
 from models.context_model import CommandContext
 from models.state_model import AmidakujiState
-
-if TYPE_CHECKING:  # pragma: no cover
-    from db_manager import DBManager
-
 
 class BaseStateHandler(ABC):
     """状態ハンドラ共通の抽象クラス。"""

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import discord
 
-from db_manager import DBManager
+from domain.interfaces.repositories import TemplateRepository
 from domain import SelectionMode
 
 
@@ -46,7 +46,9 @@ def create_selection_mode_cancelled_embed(mode: SelectionMode) -> discord.Embed:
 
 
 class SelectionModeView(discord.ui.View):
-    def __init__(self, *, db_manager: DBManager, current_mode: SelectionMode, user_id: int):
+    def __init__(
+        self, *, db_manager: TemplateRepository, current_mode: SelectionMode, user_id: int
+    ):
         super().__init__(timeout=180)
         self.db_manager = db_manager
         self.current_mode = current_mode

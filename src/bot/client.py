@@ -7,7 +7,7 @@ from typing import Any
 
 import discord
 
-from db_manager import DBManager
+from domain.interfaces.repositories import TemplateRepository
 from services.startup_check import StartupSelfCheck
 from utils import (
     ERROR,
@@ -27,7 +27,7 @@ class BotClient(discord.Client):
     def __init__(
         self,
         *,
-        db_manager: DBManager,
+        db_manager: TemplateRepository,
         intents: discord.Intents | None = None,
         translator: discord.app_commands.Translator | None = None,
         auto_sync_tree: bool = True,

@@ -4,7 +4,7 @@ from typing import Dict, Iterable, List, Optional
 
 import discord
 
-from db_manager import DBManager
+from domain.interfaces.repositories import TemplateRepository
 from domain import Template, TemplateScope
 from utils import generate_template_id
 
@@ -15,7 +15,7 @@ class TemplateSharingView(discord.ui.View):
     def __init__(
         self,
         *,
-        db_manager: DBManager,
+        db_manager: TemplateRepository,
         user_id: int,
         display_name: str,
         guild_id: Optional[int],
